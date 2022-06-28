@@ -30,7 +30,7 @@
 
 ! 이미지 태그 
 
-![string](img_url)
+[//]: # (![string]&#40;img_url&#41;)
 
 " ! [string]""(img_url)       느낌표       
 
