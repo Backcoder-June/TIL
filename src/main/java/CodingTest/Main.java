@@ -8,17 +8,17 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
 
         int N = scanner.nextInt();
-        int a = N / 10;  // 10 의자리
-        int b = N % 10;  // 1 의자리
-
+        int oldN = N ;
+        int a = oldN / 10;  // 10 의자리
+        int b = oldN % 10;  // 1 의자리
 
         int count = 0;
 
-
         while (true) {
+            count += 1;
             int newN = 0;
-            if (N < 10) {
-                newN = (N * 10 + N);
+            if (oldN < 10) {
+                newN = (oldN * 10 + oldN);
             } else {
                 if ((a + b) < 10) {
                     newN = (b * 10) + (a + b);
@@ -26,17 +26,15 @@ public class Main {
                     newN = (b * 10) + (a + b - 10);
                 }
             }
-            System.out.println(newN);
-            count += 1;
 
-            if (N == newN){ break;}
-            else { N = newN;
-                a = N / 10;
-                b = N %  10;
+            if ( N == newN){
+                System.out.println(count); break;}
+            else { oldN = newN;
+                a = oldN / 10;
+                b = oldN %  10;
             }
         }
 
-        System.out.println(count);
 
 
 
