@@ -1,18 +1,32 @@
 package CodingTest;
 
-import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
-public class Main {
-    public static void main(String[] args) {
-
-        Scanner scanner = new Scanner(System.in);
-
-        int N = scanner.nextInt();
+public class Cycle1110 {
+    public static void main(String[] args) throws IOException {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        int N = Integer.parseInt(br.readLine());
+        br.close();
         int oldN = N ;
-        int a = oldN / 10;  // 10 의자리
-        int b = oldN % 10;  // 1 의자리
-
         int count = 0;
+        while (true){
+            count++;
+            oldN = ((oldN % 10) * 10) + ((oldN%10)+(oldN / 10))%10 ;
+            if ( oldN == N){break;}   }
+        System.out.println(count);
+    }
+}
+
+// 리펙토링의 중요성//
+
+// Copy ( 최초값이랑 비교하기 위해선 최초값은 두고, Copy 데이터를 하나 만들어서 그거로 비교하면 됨 )
+
+//        int a = oldN / 10;  // 10 의자리
+//        int b = oldN % 10;  // 1 의자리
+
+/*
 
         while (true) {
             count += 1;
@@ -26,7 +40,9 @@ public class Main {
                     newN = (b * 10) + (a + b - 10);
                 }
             }
+*/
 
+/*
             if ( N == newN){
                 System.out.println(count); break;}
             else { oldN = newN;
@@ -35,11 +51,9 @@ public class Main {
             }
         }
 
+*/
 
 
-
-    }
-}
 
 
         // 10  1 + 0 = 1  => 1 /
