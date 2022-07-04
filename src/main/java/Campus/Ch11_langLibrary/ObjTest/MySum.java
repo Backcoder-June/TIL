@@ -45,7 +45,6 @@ public class MySum {
 
     /* 조건1 - toString */
 
-
     /* 조건2 - equals  */
 
     /* 조건3 - createTime */

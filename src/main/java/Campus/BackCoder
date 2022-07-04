@@ -1,0 +1,2138 @@
+---------------------------------------------------------------------------------------------------------------------------------
+< Java >
+---------------------------------------------------------------------------------------------------------------------------------
+
+1. static contents web 개발
+
+resource - static package - file.html  만들고
+
+=> localhost:8080/file.html
+
+
+2. API 방식 web 개발 (Model, html, template 안씀)         -> Rest API / JSON
+
+@Controller 필요
+//@ResponseBody  **필수
+
+@GetMapping("Url")
+public String helloAPI(@RequestParam("promise") String whatever{
+return "juststringman" + whatever;}
+
+** Json 방식 {"jasonsaidthat":"thisishowhetalks."}
+- 똑같은데 그냥 return 이 String 이 아니라 c1 같은 객체로 받는것.
+findall findbydid 같은 GET POST PATCH DELETE 등을 보내는것
+
+그 class datatype 으로 취하는 method 를 만들면서 api랑 똑같이 하면됨.
+(c1 객체화 하고 return c1; 이 되게끔.)
+
+
+3. MVC web - Template Engine 활용
+ Controller  - Model   -  Template(View)
+@Controller
+@GetMapping("URL") => 이 method 를 호출, 실행한다.
+public String welcome(Model model){        //기본 data type - String
+model.addAttribute("key" , "value");       //"key" 는 html 의 $ 와 연결 되있는 값
+ return "file이름만(.html)";
+ }
+localhost:8080/url
+
+* @RequestParam 사용법  @RequestParam(value="Url-promise", required=true)
+public String welcome (@RequestParam("Url-promise") String whatever, Model model){
+model.addAttribute("html-key" , whatever);
+localhost:8080/url?promise=whatever
+
+
+4. 예제 - 회원 등록, 조회 web 개발
+순서
+(1) domain 생성 - 다 가져다쓸 class, Name, Id
+(2) interface repository 생성  - save, findbyid, findbyname, findall 만들 기본 기술들
+(3) 구현체 repository 생성 - 위에거만 구현
+(4) service 생성 - 기본 기술들 활용해서 service 로 사용할 큼지막한 기술 join, findmembers 등 구현
+(5) Controller - 화면 구현 View 하고 연결 (Template)
+                 service의 기술들 join, findmembers 을 화면별로 적용(url 이용)
+(6) @Component(@Service,Repository) / Config @Bean  둘중 하나 사용해서 Spring container 연결(DI)
+
+-- 까지가 java 내에서 서비스 구현이 된거고 (memory 로는 실행 가능)
+(7) 이걸 DB 에 넣으려면 구현 repository 를 Query 언어로
+    JDBC Template / JPA / Spring data JPA 등으로 바꿔줘야 한다.
+(8) Config 에서 repository return new 값 바꿔치기
+ 완료
+
+
+5. JPA repository 로 바꿔치기   ( JPA repository 는 EntityManager 로 모든게 동작한다 )
+** 기본세팅 : Jpa Library 추가하기 / properties 에 JPA 관련 특성추가하기
+(1) domain class 에  @Entity(javax)  Mapping 하기
+(2) domain 데이터 "id" 에 @Id(javax) / @GeneratedValue(javax)(stratge = GenerationType.IDENTITY) 추가하기
+(3) Service 계층에 @Transactional(org!!) 추가하기
+                                                - 여기까지는 springdata JPA 도 동일하다
+(4) JPA repository class 에 private final EntityManager em; 생성자; EntityManager(em) 소환하기 -> overriding(interface)
+(5) config 에서 바꿔치기 (EntityManager 소환필요)
+    private EntityManager em; @Autowired 생성자;
+    return new JPAmemberrepository(em);
+완료
+++
+save - em.persist( );
+findById - em.find(Member.class, id);
+findAll - em.createQuery("select m from Member m", Member.class).getResultList();
+findByName - em.createQuery("select m from Member m where m.name =:name", Member.class)
+.setParameter("name", name).getResultList();
+return result.stream().findAny();
+
+
+< Optional 뽑는 법 >
+1   Optional.ofNullable()
+2   . findAny()
+3   . get()
+4   . orElse(null);   => Model 에 Optional 선언 한거 넣을때, 그냥 boardentity 넣으면 오류 (mustache 못찾는 오류)
+                       => Optinal.ofNullable(boardentity); 로 뽑으면 multi Optional 지원 안한다고 오류
+                       => boardentity . orElse(null);  로 주면 뽑힘
+          => 아니면 애초에 Optional 로 선언하지말고, orElse(null) 로 하면
+    Boardentity be = Breposit.findById(id) . orElse(null);            => 뽑을 때, 그냥 boardentitiy 로 뽑힘.
+
+요약 => 1. Optional 선언하고                -> entity.orElse(null) 로 뽑거나
+           2. 처음에 orElse(null)로 선언하고 -> eitity 로뽑거나
+
+
+
+6. Spring data JPA repository 로 바꿔치기
+** JPA 설정과 같은 세팅 (@Entity @Id @GeneratedValue @Transactional(org) )
+(1) interface 로 repository 생성
+(2) extends JpaRepository<Member, Long>(Spring data 제공), interfacerepository (다중 상속)
+(3) overriding - save, findByName, findById, findAll ( 전부 interfacerepository 거 가져오기만 하면 끝)
+(4) config 연결 - EntityManager 같은거 다 필요없고, Service 랑 interfacerepository 만 연결시켜주면 됨
+               - Springdata Jpa memberrepository 는 Jpa Repository extends 할 때, 자동으로 Bean 으로 등록됨.
+   private final interfacereposit interface; (@Autowired 필요) 생성자;
+   @Bean Memberservice membs(){return new Memberservice(interfacerepository);}
+ 끝
+
+
+< 회원 예제 details >
+Domain - name, id 는 꺼내서 쓸거니까 private 로 준다. -> getter / setter
+
+interface reposit - save, find, 기능들은 다 domain 의 name id 를 가져다 쓰는거니까 domian 객체 자체를 datatype 으로 한다
+                  - null 값 나올 기능엔 Optional<Member> 로 한다.
+                  - findAll 은 List<Member> 로 뽑는다. =new ArrayList
+
+Member reposit - sequence / HashMap 은 함부로 손대면 안되고, 꺼내서 쓰는것이므로 private static
+                     - public void clearman
+                     - public void afteach
+
+Member Service - Join, findmembers 같은 기능들 public 으로하고 return type 생각해서 Long, List 등으로
+
+               - Join 안에 중복방지메소드는 꺼내쓸거니까 private, error 만 던질거니까 void
+
+               - reposit 하고 연결할 땐, private final   - 연결부를 꽉 조이는 느낌
+
+Member Controller - service 하고 연결할 땐, private final
+
+                  - @Mapping 할땐 다 public String 으로
+
+                  - @PostMapping 할땐 유저가 input 한걸 받을 form class 를 따로 만들어줘야됨. 그걸 domain name 하고 연결시켜서 씀
+
+                  - findmembers 받을 땐, List로 받아야 되므로, value 값이 생김 => Model !
+                    public String 으로 맵핑한거에서 Model 로 List 값을 value 로 받아서 htmlkey 로 뿌림
+
+연결 - [1] 기본 Memory 에 저장 할 때
+      1. Component Scan
+       (1) @Repository
+       (2) @Service / @Autowired
+       (3) @Controller / @Autowired
+
+     2. Configuration - Bean
+       (1) X
+       (2) X
+       (3) O
+       (4) @Bean public Memberservice memberservice(){return new Memberserevce(interfacereposit);}
+       (5) @Bean public Interfacereposit interfacereposit(){return new Memberreposit();}
+
+      3. JPA - configuration
+       (6) private EntityManager em; @Autowried 생성자;
+           @Bean Memberservice() {return new Memberservice(interfaceroposit);}
+           @Bean Interfacereposit() {return new JPAreposit(em);}
+
+       (7) Spring data JPA -> private final Interfacereposit interfacereposit; @Autowired 생성자
+                              @Bean public Memberservice membeservice(){return new MS(interfacereposit);}
+
+
+
+
+
+7. AOP class 만들기 ( cross-cutting concern / core concern )
+(1) AOP package 만들고 원하는 공통관심사항 class 생성
+(2) class 에 @Aspect  <- AoP class 임을 알려줌
+(3) @Component <- Bean 으로 등록 ( Config 에서 직접해도 되지만 한가지 작업을 더해줘야한다 )
+(4) method 만들고
+(5) method 에 @Around("execution( * 상위패키지.원하는패키지.*(.원하는클래스.))")  로 적용할 대상 선택지정
+ 끝
+
+Controller -> [[AOP class -> Proxy 복제 service/repository -> AOP 결과물]] -> 진짜 service/repository  진행
+
+
+
+
+
+8. test case 만들기
+*같은 package 이름, 같은 class명+test => 계층에 가서 Ctrl + Shift + T //우클릭 go to test / generate - test /
+(1) testclass 안에서 실험하고싶은 계층 (Service, repository 등) 소환
+    Memberrepository A = new Memberrepository();
+
+(1.5) Service 계층 소환 할때는, repository 를 달고 들어와야하기 때문에, DI 로 해줘야 한다.
+      Memberservice memberservice;
+      Memberrepository memberrepository;   선언만 해주고
+
+   ** @BeforeEach
+      public void beforeeach(){
+              memberrepository = new Memberrepository();
+              memberservice = new Memberservice(memberrepository);  이렇게 담아야 담긴다.
+
+
+(2) 도메인 class 객체 생성 -> 이걸로 실험을 해야함
+    member.setname("june");
+(3) 소환한 계층의 method 들 사용해보기
+    @Test
+    public void save( ){
+    A.save(member);      }=> 작동시 초록불
+(4) 확실한 test 를 짜보기 (Boolean / Assertthat) - //given  //when //then
+
+  Assertions.assertEquals( Excpected, Actual, "메세지추가 가능" );    (junit)
+
+  Assertions.assertthat(Actual).isEqualto(Expected);  (Assertj)
+
+		alt+Enter <= add static import  <= Assertions 생략하고 사용 가능
+
+
+
+    assertthat(x).isEqualto(y);        => 작동시 같다는 의미.
+
+(5) clearman 만들기 - (repository)   ->  실험하는 test 에 AfterEach 와 연계
+    public void clearman(){store.clear();}
+    Test class 에
+    @AfterEach
+    public void aftech(){ A.clearman();}
+
+(6) Exception 넣어둔 부분 test
+  [1] try catch
+  [2] assertThrows        Exception종류.class   , 람다 (어떤로직) ->  m2가 조인하는 logic => 해당 Exception 이 터져요
+        assertThrows(IllegalStateException.class, () -> memberservice.Join(m2));
+
+
+9. Spring Integration Test -  스프링 컨테이너랑 함께 통합 test -> DB 까지 실제로 올라감
+(1) @SpringBootTest  -> SpringBoot 랑 같이 통합 test 할게요!
+(2) @Transactional   -> Test가 끝나면 DB data 롤백(초기화)              => @AfterEach(X)
+(3) Service/Repository 소환할 때, 닥 @Autowired 로 제낌 (DI new 안씀)   => @BeforeEach(X)
+     @Autowired Memberservice memberservice;
+     @Autowired interfacerepository memberrepository; ( 주의*interface - 구현체 )
+(4) 나머지는 그냥 test case 랑 똑같음
+
+------------------------------------------------------
+(홍팍 Ver)
+(1) @SpringBootTest
+(2) @Autowired Boardservice boardservice;           ( 서비스 계층 test 할때. CRUD 리포지토리 라 그런가 손 안댐)
+(3) //Expected
+	Boardentity expected = new Boardentity( 1L, "가가가가", "1111" );      <= entity에 생성자 만들었을때 사용
+	Boardentity expected = new Boardentity;
+		expected.setId(1L);
+		expected.setTitle("가가가가");
+		expected.setcontents("1111");    		<=entity에 Getter/Setter만 있을때 사용
+
+    //Actual (이것부터 작성)
+
+	Boardentity board1 = boardservice.show(1L);
+
+    //Assert
+	assertthat(board1.toString( )).isEqualto(expected.toString( ));
+
+(4) null 값일때 잘 나오는지 Test
+	똑같이하고 , id 없는 값으로 줘보고
+    //Assert
+	assertthat(board1).isEqualto(expected);                 // null 은 toString( ) 으로 못 뽑기 때문에 자체로 비교
+
+
+// Test 할때, 성공할때랑  / 실패할때 (null 등, 오류일때) 나눠서 테스트 둘다 해봐야 한다.
+
+(5) create 글작성 test   => dto를 여기서 직접 생성
+
+  //expected
+	String title = "가가가가";
+	String contents = "1111";
+	Boardform dto = new Boardform( null, title, contents);    // 글 작성할때 id 는 안준다 null로 해야 정상
+						// id를 준 경우를 fail 로 null 로 잡는 test따로실행
+	=>dto 만든걸로 expected 생성
+	Boardentity expected = new Boardentity ( 진짜예상되는 순서id(올바른), title, contents );
+
+  //Actual
+	Boardentity board1 = boardservice.create(dto);
+
+  //assert
+	assertthat(board1.toString()).isEqualto(expected.toString());
+
+
+(6) @Transactional   <= create 나 delete 등 test 하는데 변화를 만들 수 있는 test 들에 줘서 "롤백" 시킨다.
+                 (아마 testclass 자체에 줘도 될거다)
+    => @AfterEach 에 clearman 메소드 대신해줌
+
+
+
+( 홍팍 jpa연동 Test 버전 )  => Repository 테스트 할때는 Jpa랑 연동해서 Test 해볼수도 있다.
+
+1. @DataJpaTest
+2. @Autowired CommentReposit commentreposit;   땡겨오고
+  (@Test 할 메소드에 @DisplayName("게시글댓글모두조회")  하면 테스트결과에 보여줄 이름을 설정할수도 있다. (한글로 보기편하게) )
+
+3.{        <= 한번 더 묶어줘서 case별로 작성 가능  /* Case 1 : 4번 게시글의 모든 댓글 조회 */
+
+    //입력 데이터 준비
+
+    //expected
+
+    //actual
+
+
+
+    //assert  }
+
+
+<!--
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-mappings
+        xmlns="http://java.sun.com/xml/ns/persistence/orm"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://java.sun.com/xml/ns/persistence/orm http://java.sun.com/xml/ns/persistence/orm_2_0.xsd"
+        version="2.0">
+
+    <named-native-query
+            name="Comment.findByNickname"
+            result-class="June.Board.BoardEntity.Comment">
+        <query>
+            <![CDATA[
+            SELECT * FROM comment WHERE nickname = :nickname
+            ]]>
+        </query>
+    </named-native-query>
+</entity-mappings>
+
+-->
+
+
+
+
+
+
+
+
+
+777. method 잡기술
+
+
+
+
+< deprecated 메소드들 >
+추천 메소드들중에 ----- 그어진 것들
+사용은 되지만 권고하지 않습니다. (곧 없어집니다.)
+
+
+< System 클래스 메소드들 > ( 컴퓨터 정보 읽어올때 유용 )
+
+System.exit(0) => 시스템 종료 ( if ( A == B ) { System.exit(0); }  // main 종료 //
+System.currentTimeMilis( );  => 1/1000초 시각 ( long타입 )  => 시작, 끝에서 측정해서 작업시간 측정
+System.getProperty("os.name"); => os 종류 보여줌 (windows, mac, linux )
+System.getProperty("java.version") => java 정보
+System.getProperty("user.dir") => 자바저장디렉토리
+System.getProperty("file.separator") => 파일분리자 ( OS 마다 표현 다르다 주의 )
+System.getEnv( );  => 컴퓨터의 환경변수 값 출력
+
+
+
+< String 클래스 >
+
+- 본래 String 은 클래스다.
+  하도 자주사용되기 때문에 java 의 총애를 받아 쉬운문법을 사용할수 있도록 만들어졌다.
+
+[ String 메소드 ]
+equals / equalsIgnoreCase  -  문자열 '내용' 비교
+toUpperCase / toLowerCase - 대/소문자화
+
+< .toUpperCase( ) > (실무에서 잘쓰일듯)
+student.title = args[1] .toUpperCase( );  이렇게 해두면
+입력 받은 값을 다 대문자로 바꿔서 저장했기 때문에
+나중에,  equals 로 비교할 때, . equalsIgnoreCase 안해줘도 됨.
+그리고, 입력값도 대문자로 통일되서 보기 좋음. 이게 더 바람직
+
+concat  -  문자열 2개를 1개로 합침 ( 그냥 + 로 편히 쓰거라 )
+length - 문자열 갯수
+
+<String.valueOf( )>
+String.valueOf('a');   character
+String.valueOf(100.99);  double 등등
+=> 스트링으로 만들어줌
+
+
+
+
+< split >  -  문자열 분리  => String[ ] 배열로 return 받음
+
+String . split ( "구분자" );         =>   문자열 분리
+String A = OXXXOOXXXOOOO;
+
+Stirng[ ] spl = A.split( "X" );
+=> spl[0] = "O";
+     spl[1] = "OO";
+     spl[2] = "OOOO";
+
+-  구분자에 split("  "); 공백으로 주면, 띄어쓰기로 분리
+-  ( " [특수문자] " )
+특수문자중에 Regular Expression에 있는것들 < . + * ? >=> 특수문자라고 표시해줘야함
+(1).  [  ] 묶어서 표현
+(2).  split( "\\?" ) 역슬래쉬 두번
+
+
+< split 구분자 여러개 쓰기 >
+split("( - | / | : |  | , | [+])");
+구분자 =>   - / : 공백 ,
+
+// 구분자 특수문자 regex 포함되는거면 [ ]해줘
+
+
+
+< subString >  - "슬라이싱"(Slicing)한다 => 문자열에서 일부 문자만 추출
+
+String s = "javaprogramming";
+s.subString(0, 4);   => 0번 인덱스부터 4번인덱스 '전'까지 (0 1 2 3 )
+		     인덱스 사이의 문자열 추출
+=> java
+
+s.substring(4);  => 4번 인덱스부터 ~ 마지막까지
+=> programming
+
+
+
+
+< charAt > - "인덱싱"(Indexing)한다 => 해당 index 의 문자 1개만 검색
+
+String s = "java";
+s.charAt(0);
+=>  'j'
+
+char 딱 한글자를 String 으로 집어넣으려면 String.valueOf 가 필요하다.
+String initial = String.valueOf(middle.charAt(0));
+
+
+
+-  charAt 으로 int 와 == 확인 >  => 유니코드 활용
+
+    if (( string.charAt( " 2 " ) - '0') == 2 ) { count++; }
+
+// char int문자에 -48 ( = -'0' ) 을 해주면 => ( char int문자 유니코드 - 48 )
+=> 실제 int 값이 나온다. => 이용해서 char 과 int 를 비교 가능
+
+
+< Contains >  -  문자열이 해당문자열 내용을 포함 하고 있는지 (Boolean) / equals 의 약한버전
+
+String s = "javaprogram";
+s.contains("program")
+=> true
+
+< indexOf >  -  몇 번 인덱스부터 있는지 알려줘
+
+String s = "javaprogrampower";
+s.indexOf("pr");
+=> 4    ( 4번 인덱스부터 있다 )
+s.indexOf("br");
+=> -1   ( 없다 : -1 로 표시 )
+//이걸 이용하면, contains 로도 사용할 수 있다.
+
+
+3. Char 배열을 String으로 한방에 ( String 생성자 이용 )
+
+char c1[ ] = { 'a', 'b', 'c', 'd' }
+String sc = new String ( c1 );   => "abcd"
+
+- byte 배열도 Char배열로 인식해서 가능 (유니코드)
+byte b[ ] = { 65, 66, 67 ,68 }
+String sb = new String( b );  => "ABCD"
+
+
+---
+
+< String.matches( " " ) >
+
+=> java.regex.Pattern 사용한다.  ( RegularExpression 정규표현식. 컴퓨터 공용표현 )
+
+String phone = "010-2345-5678";
+입력 - 010이345오678 이따구로하면 X
+
+=> Pattern (규칙) 을 정해놓는다.  ( java.regex.Pattern )
+
+=> String.matches( " " ) 메소드 사용!    (Boolean) => false 면 다시적게끔 만들기
+
+phone.matches("010-[0-9]{3,4}-[0-9]{4}" )
+	    [0-9] 0부터 9까지 올수있다.
+	    {0,3}  최소 a 개 부터 b개 까지 {횟수}
+	    그외 박아놓은 숫자나 - 기호등은 고정된 format
+
+[a-z] 소문자
+[A-Z] 대문자
+[A-z] 알파벳문자
+[A-z0-9] 숫자든 알파펫 문자든 전체 가능 (띄어쓰기안하고 바로붙여서)
+[A-z0-9가-힣]
+[가-힣] 한글문자
+.{3,5}  모든문자 3~5횟수 (한글 특수문자까지 포함)
+
+(010 | 011)  010이나 011중 하나만 가능
+
+\\d 모든 숫자
+\\w 숫자와 문자 포함해서 모든 문자들 (한글 미포함)
+{3, } 최소3
+
+{ 회수 주기 }
+[+]  최소 한개이상와야한다
+"010-35-[0-9]+"   => 숫자중에 최소한개이상
+[*]   횟수 무제한. 0~무한대
+"010-35-[0-9]*"    => 숫자중에 안와도되고 무한대로 완도되고
+[?]   횟수 0회 혹은 1회
+[0-9]? // (Y|N)? 이러면 안할수도있어서, (Y|N){1} 이렇게해야겠지
+
+
+
+(참고만- split 에서는 pattern 사용 가능  /  Tokenizer 에서는 pattern 사용 불가능 )
+
+
+
+
+< StringTokenizer >  문자열 쪼개는 역할만 있는 클래스
+
+token - 더이상 쪼갤 수 없는 기본 단위
+
+StringTokenizer tk = new StringTokenizer( br.readLine, "구분자" )
+- 기본 default 구분자는 " " 공백 한칸이다. (스페이스)
+- 여기 구분자에 " -,: " 특수문자를 여러개 동시에 적용시킬수있다.
+
+String a = "asf-as,wqf asf:saf"
+StringTokenizer tk = new StringTokenizer(a," -,:");
+        while (tk.hasMoreTokens()){
+        String s = tk.nextToken();
+            System.out.println(s);}
+
+
+
+
+
+
+
+
+< Scanner >
+Scanner sc = new Scanner(System.in);
+int a = sc. nextInt( );
+int b = sc. nextInt( );
+while( ) { sout ( a + b); }
+2 3
+5
+3 6
+9
+=> 자동으로 띄어쓰기로 구별 (nextint( ) 가 그렇게 만듬)
+//RuntimeError 잡기 쉽다 => while ( sc.hasNextInt )
+
+
+< BufferedWriter. write (    ) >
+write (    ) => String / int 타입이 있는데,
+	int C 타입이면 text 가 깨져서 나온다.
+	String 타입으로 주면 잘 나온다. ( + "\n" ) 주는 식으로해서 String으로 뽑는다.
+
+
+
+< BufferedReader >    => Scanner 역할 ( 많은 양 처리할 때 더 빠름 )  // 예외처리해야함 main throws IOException{ }
+BufferedReader br = new BufferedReader(new InputStreamReader(System.in)); //선언
+String s = bf.readLine(); //String
+int T = Integer.parseInt(bf.readLine()); //Int
+
+<StringTokenizer>      => BufferedReader 입력 줄단위 => 공백 단위    // 반복문 돌면서 계속 띄어쓰기 필요한지,
+							     // 한줄에 입력값 넣고 다음줄에 입력값 넣으려면 새로 객체 만들면 됨
+							     // 배열같은거에 넣고, 거기서 if 걸어서 뽑아낼 때,
+							     // 먼저 배열에 다 넣어놔야 만들어진 배열에서 if 로 뽑음
+							     // ( 배열 넣으면서 동시에 뽑을순 없음 ) 따로 다시 for 문 만들어서 뽑아야함
+StringTokenizer st = new StringTokenizer( br.readLine( ) ); // br 로 읽어온걸 토큰으로 만듦 ( String 상태 )
+int a = Integer.parseInt( st.nextToken( ) ); //  . nextToken( ) 으로 뽑고, int 면 형변환 하면서 뽑아줌
+int b = Integer.parseInt( st.nextToken( ) );
+
+(1) 반복문 밖에 토큰 생성
+StringTokenizer tk2 = new StringTokenizer(br.readLine());
+        int[ ] A = new int[N];
+        for (int b = 0; b < N; b++) {
+           A[b] = Integer.parseInt(tk2.nextToken( ));     }
+
+=> 띄어쓰기 할때마다, 반복문 한번씩 돌아감
+
+
+(2) 반복문 안에 토큰 생성
+        int[ ] A = new int[N];
+        for (int b = 0; b < N; b++) {
+StringTokenizer tk2 = new StringTokenizer(br.readLine());
+           A[b] = Integer.parseInt(tk2.nextToken( ));     }
+
+=> 반복문 안에서 토큰 적용 되는 부분까지만 띄어쓰기 적용됨
+=> 여기선 Token 쓰는게 하나라서 하나만 적용. 그다음 꺼 적용시키려면 엔터쳐야함
+=> Token 쓰는게 A, B 두개라면 띄어쓰기 하면 두개가 적용됨
+
+** => 반복문에서 토큰이 하나고, 입력값 주는 형식이 띄어쓰기로 2 3 4 5 계속 주는 형식이면 => 반복분 바깥에 토큰생성
+** => 반복문 안에 토큰이 여러개고, 그 갯수마다 2 2
+					3 3
+					4 2  이런식으로 두개씩 줘야하는 형식이면 => 반복문 안쪽에 생성
+
+
+
+< BufferedWriter >  => Sout 역할
+BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));   //할당된 버퍼에 값 넣어주기
+String s = "abcdefg";   //출력할 문자열
+bw.write(s+"\n");   // 출력 ( Sout )
+
+bw.write( a + b + "\n" )   <= 라인 옮겨주는 기능 없어서 직접 해줘야 함
+
+
+bw.flush();   //남아있는 데이터를 모두 출력시킴
+bw.close();   //스트림을 닫음
+
+BufferedWriter 의 경우 버퍼를 잡아 놓았기 때문에 반드시 flush() / close() 를 반드시 호출해 주어 뒤처리를 해주어야 한다.
+그리고 bw.write에는 System.out.println();과 같이 자동개행기능이 없기때문에 개행을 해주어야할 경우에는 \n를 통해 따로 처리해주어야 한다.
+
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(System.out));
+
+        int n = Integer.parseInt(br.readLine());
+
+        for (int a = 1; a<=n ; a++){
+
+            bw.write(a + "\n");
+        }
+        bw.flush();
+        bw.close();
+        br.close();
+
+
+
+
+< instanceof >
+
+if( A instanceof B )
+=> instanceof  : A 가 B 의 객체 인가
+ (형변환때 자주 쓰임)
+
+응용
+if (e[i] instanceof Secretary ){
+   sout( ( (Secretry) e[i] ). bisu); }
+   	형변환 먼저하고 (자식역할 복귀) 비수사용
+
+< 한방에 list 에 담는 스킬 >
+List<Boardentity> expected = new ArrayList<>(Arrays.asList(a,b,c));
+
+List<Comment> expected = new ArrayList<>();
+            expected.add(comment1);
+            expected.add(comment2);
+
+이걸 한방에
+            List<Comment> expected = Arrays.asList(comment1, comment2);
+
+
+
+ \t (역슬래쉬 t ) -> tap 칸만큼 띄어쓰기
+
+(1).length()  -  글자수 및 기본 array 숫자
+(2).size()  -  ArrayList 등 Collection Framework 에서 element 숫자
+
+(3).replace(A, B)  -  다 완성된 문장따위에서 교환
+
+(4) .equals( )  -  String 비교  /  객체 비교
+     .equalsIgnoreCase( ) - String 비교할때 대소문자 무시
+
+< equals 실제값 비교하도록 Overriding >
+class MyObject {
+    String msg;
+    MyObject(String msg) {
+        this.msg = msg; }
+
+    public boolean equals(Object obj) {
+        if (obj instanceof MyObject) {        //들어오는 객체가 비교하고자 하는 본래의 객체 타입이라면, 비교를 시작하겠다.
+								//boolean 에서 return 은 true / false
+         return this.msg.equals(((MyObject) obj).msg);        //this <= 사용해서 A.equals(B) 에서 A 를 끄집어내야됨
+     } else { return false; }				// A의 무언가가 equals(문자열 비교) B의 무언가와 가은지 비교.
+
+//obj 들어온걸 형변환해서 msg 꺼내서 비교 (여기서 equals 는 기본 문자열 비교)           //if문있어서 형변환은 사실상 노필요
+//equals 다형성 - 지금 오버라이딩해서 만드는건 객체비교 equals
+
+
+(5)Integer.toString() - Int to String Casting
+   Integer.parseInt() - String to Int Casting
+   Integer.parseint( "100", 2 )  2진수로
+   Interger.parseint( "12345678", 5, 7, 10 ) - index5번부터 7번 전까지(미포함), 10진수로
+
+
+(6) Class에 main메소드 args 배열 이용하기 main(Stirng[] args)           => 다 String 으로 인식함. (산술연산 X - Interger.이용)
+Edit configuration - 인자값 순서대로 ( 띄어쓰기로만 구별 )   /  args[0];
+
+기본적으로 " " 안써줘도 됨. 써줘도 됨.
+띄어쓰기 구별하려면 " " 써주면 됨
+
+(7) int month = (int)(Math.random( )*12)+1 ;
+
+    int day = 0;
+
+  switch(month){
+case 1 : day = 31;   break;
+case 2 : day = 28;   break;
+case 3 : day = 30;   break;
+default : sout("목록에 없습니다"); }
+sout( month );
+
++ break 활용
+
+case 1 :
+case 3 :
+case 10 :
+case 12 : day = 31; break;                     <<= break 로 공통된 거 같이 적용되게 끊어줌.
+
+String glad = "";
+        int avg2 = avg/10;                    // 점수 평균낼때, case 90 91 92... 이렇게 낼 수 없으니, 10으로 나눠서 하는 수학스킬
+
+        switch (avg2){
+            case 10 :
+            case 9 :
+                glad = "A"; break;
+            case 8 :
+            case 7 :
+                glad = "B";break;
+            case 6 :
+            case 5 :
+                glad = "C";break;
+            default:
+                glad = "F";  }
+        System.out.println("랜덤 학점 : "+glad);
+
+
+< case "스트링" : ~   > String 도 지원한다.  // + enum 도 지원한다. // byte,short,int,  char,String,enum 지원
+String month = "1월";
+String day = "";
+
+switch( month ) {
+case "1월" : day = "31일"; }
+sout ( day ); => 31일 //
+
+
+
+
+(8) if(  ( A||B||C )  &&  D  )    - ABC 부분 () 로 묶어줘야 함
+
+(9) for(){if(){continue;}            <- 그 부분만 띄어넘고 계속 진행, 앞에다 줘야함
+          sout();
+          if(){break;}  }
+
+(10) Array
+     String[] members = new String[3];
+     members[0] = "Jack";
+     foreach 로 꺼내쓴다.
+
+(11) foreach
+for( String 새로운변수 : 돌릴배열집합 ) {sout(새로운변수)}       //돌릴배열집합을 새로운변수 에 하나하나 담아주고, 그때마다 작동
+
+(12) output += a;    =>  output = output + a ;
+
+(13) Scanner parrot = new Scanner(Systme.in);
+     while(parrot.hasNextLine){sout(parrot.nextLine +"라구요?");} parrot.close();
+
+(14) File fi = new File("out.txt");
+     Scanner parrot = new Sacnner(fi);
+
+
+(15) static (=공유) ->  variables -> class 변수(여러 객체가 공유)  //  변수도 객체생성 없이 직접 클래스로 소환 가능
+                            method  -> 유틸리티 메소드(공유 => 객체 생성 없이 직접 클래스로 소환해서 사용가능)
+// 프로그램의 시작부터 끝까지 고정값 / 전체 객체에게 공유하고자 할때 / 객체없이 소환하고자 할때
+
+접근제어자 public/private/default/protected ->  variables/method
+
+                접근 / 공유 / Type/ 이름
+메소드   => public static void sum(){}
+                       접근
+클래스   => public / default  (패키지공유)
+     => public class calculator{}
+
+하지만   => 생성자로 private calculator(){} 이렇게 주면 사실상 private class 가 됨
+            -> 객체 꺼내쓰려면 singletone pattern 사용(static-공유) -> 꺼내오긴했지만 유일한고정값이 됨(시계, calender 등 이용)
+
+
+(16) Overloading - parameter 개수 / data type 에 따라 자동호출 시스템
+
+(17) Overriding - [1] super class 에 생성자 안만들고 sub class 에서 만들기
+                  [2] 이미 만들었다면 sub 에서 생성자 parameter 까지만 맞추고 super(a,b); 해주면 끝
+
+(18) super
+     (int a, int b) {super(a, b);}    - 생성자 상속 땡겨오기
+     return super.sum();   -   메소드 상속,overriding 할때 그대로 땡겨오기
+
+(19) abstract -> class/method       ->  상속 필수 / overriding 필수
+
+(20) final -> class/method/field     ->  상속 불가 / overriding 불가 / 변경불가
+ entity 객체에서
+private final addFee;  이렇게 final로 못박아도
+"생성자"에서 초기화하는거 딱 한번만 "인정"해준다.
+public Student ( ~ ) {
+this.addFee = Integer.parseInt(args[4]); }
+생성자로 초기화해서 줄 수 있다.
+
+
+(21) interface class
+     class A implements interface1, interface2 { }    -   다중 구현 가능
+     interface1 extends interface2 {  }  -   껍데기 끼리 상속 가능
+     무조건 public method/변수. - 껍데기는 public 으로! (생략해도 java 가 public 으로 만듬)
+     interface 껍데기 - public interface A { (public) void sum(); }
+
+(22) 다형성 - 하나의 메소드/class 가 다양한 방법으로 동작
+     [1] Overloading 메소드 - 자동호출시스템
+     [2] interfacereposit IR = new Memberreposit();        =>1.필요한것만 꺼내쓰기 2.다른 method 사용 방지 3.Super 로 묶기
+          < 행세 CLASS >            < 원본 CLASS >
+              1. 본래 자신인 Memberrepsoit 이 당연히 오거나
+              2. 자신의 Super class 가 온다    =>  Super class 처럼 행세 한다.
+                 ! Super class 에 있는 method 들 사용 가능 (당연하다. 상속관계)
+                 ! Sub 에서 Overriding 된 경우 -> Overriding 된걸 쓴다.
+                 ! Sub class 에만 있는 method -> 사용 불가능 (이게 특이점. 행세)
+               => ( 있는건 Sub 없는건 Super )
+
+
+(22) Exception
+     IllegalArgumentException   -  인자값이 메소드에 적합하지 않음
+     IllegalStateException      -  메소드가 동작할 수 있는 상황을 충족시키지 못함
+     NullPointerException       -  parameter 가 없음 Null
+     ArrayIndexOutOfBoundsException
+     ArithmeticException
+     FileNotFoundException
+
+(23) try{} catch(Exception e){e.getMessage/toString/printStackTrace();}
+                                 간단        자세히      자세히+위치
+     catch(ArrayIndexOutOfBoundsException e){}
+     catch(ArithmeticException e){}
+     catch(Exception e){sout("알수없는 오류");}          <= else 역할
+     finally{ sout("disconnect DB") }
+
+(24) finally (무조건실행)  => try catch 마지막에 사용 - DB 연결 끊어주기
+
+(25) throws 예외던지기
+     public void SUM() throws FileNotFoundException, IOException{ }
+
+(26) throw 예외 생성 (명령문) new
+     public void SUM(int a, int b){
+     if(b==0){throw new IllegalArgumentException("분모가 0일 수 없어요.");} a+b;}
+     try{c1.SUM();}
+     catch(IllegalArgumentException e){sout(e.getMessage());}   -> "분모가 0일 수 없어요."
+
+(27) checked Exception  /  Unchecked Exception
+        예외처리 필수            안해도 됨
+            X                 RuntimeException
+    throws / try catch             X
+     IO / FileNotFound    Arithmetic / ArrayIndex
+
+
+(28) .toString     -> 객체를 문자로 표현 ( package 위치, class 이름, 고유번호 )
+     public String toString(){                    <- overriding 해서 사용 가능
+     return super.toString(); sout("라는 객체");}
+
+     Entity 클래스에서 toString 을 정의해서 만들어놓으면,
+     다른데서 sout 로 그 객체를 뽑아쓸 때, 자동으로 toString 이 적용된다.
+     ( sout 로 객체를 부르면 자동으로 toString이 적용니까, override 해놓으면 객체만 불러도 그게 실행되는거지. )
+
+
+
+(29) .clone    -> protected Object clone() throws CloneNotSupportedException{} 기본이 protected
+    overriding -> public Object clone() throws " "{return super.clone();}  ->  접근제어자 바꿔서 쓰자 (Object - 다른 패키지)
+    class student implements Cloneable{
+    try{
+    student s2 = (student) s1.clone();
+    sout(s1.name);  sout(s2.name);}
+    catch(){}
+
+(30) enum  (class)
+     enum Fruit {Apple, Banana, Carrot}
+
+     Fruit A = Fruit.Apple;                 //switch 문 원래 객체 안들어가는데 enum 은 들어감
+     switch(A){
+     case Apple : sout(""); break;
+     case Banana : sout(""); break; }
+
+     if( A == Fruit.Apple ) {sout}
+     else if( A == Fruit.Banana ) {sout}
+
+(31) enum + method
+     enum Fruit {Apple(1), Banana(2), Carrot(3) ;
+[1] ()줄거   -> private rank;
+[2] 꺼낼거   -> public getrank(){return this.rank;}
+[3] 생성자   -> Fruit(int rank){this.rank = rank;}     }
+     Fruit type = Fruit.Apple;
+     switch(type){
+     case Apple : sout("Apple is ranked" + Fruit.Apple.uprank()); }
+
+[+] foreach ( Fruit F : Fruit.values() ) { sout() }        <- .values() 로 enum 객체에 담아서 뽑기
+
+
+(32) Reference DataType (new)
+       a.ID = 1                  직접 값 때려박기      최신정보공유
+     A a = new A(1); A b = a; /      b.ID = 2;      =>참조(o)         a.ID => 2
+     A a = new A(1); A b = a; /  b = new A(2);      =>참조(x)         a.ID => 1
+       a.ID = 1                  새로운 instance      각자정보
+
+(33)  <Generic> -> class 내부에서 사용할 data type 을 나중에 instance 를 생성할 때, 확정 하는 것
+      [1] instance 별로 필요한 data type 으로 바꾸어 class 를 사용할 수 있게 함으로서 코드 중복 방지
+      [2] Type safety - 용도와 맞지않는 data type 이 들어가지 않도록 안전보장
+      [3] generic 은 reference 참조형 data type 만 가능 (기본형 X) -> wrapper class 이용(.IntValue())
+
+class Language { String lang; 생성자 }               // generic 에 넣을 객체
+class engineer<T, S> { public T language; public S age; 생성자 }
+public class { main {
+T : Language L1 = new Language("java");
+S : Integer age1 = new Integer(30);
+engineer<Language, Integer> en1 = new engineer(L1, age1);
+sout(en1.L1.lang);
+sout(en1.age1.IntValue());
+
+(34) <Generic> method
+     public <T> void getresult( T result ) {};
+     en1.<Language> getresult( L1 );
+
+(35) <Generic> extends   -   super class 의 자식들로만 datatype 제한
+     class person<T extends superinfo>{ }   -  (generic 은 interface 여도 extends 로 한다)
+
+(36) ArrayList          -> .add() / .get([index])
+     ArrayList<String> al = new ArrayList<String>();
+     al.add("Apple");
+     al.add("Banana");
+
+     String Fruit = al.get(1); sout(Fruit);
+     foreach(String Fruits : al) {sout("Fruits are : " + Fruits); }
+
+(37) HashSet         집합 -> .add() / .addAll() / .removeAll() / .retainAll() / .clear()
+     A.addAll(B);   -> foreach(Integer age : A){sout(age);}
+     LinkedHashSet  -  똑같은데 출력이 순서대로만 될 뿐.
+
+
+(38) Iterator              ->  iterator() / .hasNext() / .next()
+     Iterator FE = (Iterator) A.iterator();
+     while(FE.hasNext()){sout(FE.next());}
+
+(39) HashMap               -> .put() / .get(key값) / .values()
+     HashMap<Integer, String> A = new HashMap<Integer, String>();
+     A.put(1, "Apple");
+     A.put(2, "Banana");
+     sout(A.get(2));
+
+     [1] Value 값만 뽑으면 될 때  ->   .values()        // HashMap 은 para 가 두개라 values 로 뽑아야한다
+     for(String Fruit : A.values()){sout(Fruit);}                 // key 값이랑 value 가 있으니까, values 를 담겠다.
+     Iterator FR = (Iterator) A.values().iterator();
+     while(FR.hasNext()){sout(FR.next());}
+
+     [2] Key값=Value 로 뽑을 때   -> Set/ Map.Entry / map.entrySet();
+     static void IterUsingiter(HashMap map) {
+     Set<Map.Entry<Integer, String>> A = map.entrySet();
+     Iterator<Map.Entry<Interger, String>> getmap = (Iterator) A.iterator();
+     while(getmap.hasNext()){sout(getmap.next();}        }
+
+     [3] getKey() / getValue() 로 조작해서 뽑을 때
+      while (getmap.hasNext()){Map.Entry<Integer, String> B = getmap.next();
+                 System.out.println(B.getKey() + ":" + B.getValue());
+
+
+(40) <return 잡기술>
+두개 뽑고 싶을때
+return number + "" + owner;
+
+
+
+<오름차순 정렬>
+Arrays.sort( );        (java.util)
+
+
+
+(41) .sort(List L1)    <-  1. implements Comparable / 2. compareTo(Object a) 필요 / 3. Collections.sort(c1); 뽑기
+public class {
+class computer implements Comparable {                            // Comparable
+    int number;
+    String owner;
+    computer(int number, String owner) {
+        this.number = number;
+        this.owner = owner;}
+    public int compareTo(Object c1) {
+        return this.number - ((computer) c1).number; }            // A.compareTo(B) => 양수 > / 음수 < / 0 == /
+
+(+) .toString                                             <- return 으로 뽑을 메소드 필요 - Overriding
+        public String toString() {
+        return number + "" + owner;  }     } }
+
+
+public class framework01 {
+    public static void main(String[] args) {
+        List<computer> comp = new ArrayList<computer>();
+        comp.add(new computer(500, "June"));                   // 객체 .add => "new 객체()"
+        comp.add(new computer(200, "Tom"));
+        comp.add(new computer(1000, "Luna"));
+
+        sout(comp.toString());                                -> 500 200 1000 그냥 순서
+
+        Collections.sort(comp);                                //Collections.sort(c1);
+
+        sout(comp.toString());                                -> 200 500 1000 sort 정렬 순서
+
+
+--
+
+
+@MappedSuperclass
+단순히 맵핑 정보만을 Subclass 들에게 뿌려주는 Superclass
+id, name 등과 같이 계속해서 쓰이고, 공통으로 맵핑 정보를 넣어줘야 할 때, annotation 해서 상속해서 쓴다.
+MappedSuperclass 자기자신은 Table 에 맵핑되지 않는다. -> Entity 가 아니다.
+Entity -> Entity 상속 가능, MappedSuperclass 상속 가능.
+ex) id, name, 등록일, 수정일 등 전체 Entity 에 공통으로 적용할 때 쓰자.
+
+Serializable 직렬화
+자바 시스템 내부에서 사용되는 객체 또는 데이터들을 외부의 자바 시스템에서도 사용할 수 있도록
+바이트(byte) 형태로 데이터 변환하는 기술
+바이트로 변환된 데이터를 다시 객체로 변환하는 역직렬화를 포함
+
+PK (Primary Key) 기본 키 값을 맵핑
+@Id - 직접할당
+@GeneratedValue - 자동생성 (strategy = GenerationType.IDENTITY)
+ -> PK 값 생성을 DB에 위임. DB에 저장해야 PK 값 생성 됨
+
+객체 매핑 : @Entity
+테이블 매핑 : @Table (생성)
+기본 키 매핑 : @Id @GeneratedValue
+필드와 컬럼 매핑 : @Column  (Table 행 생성)
+연관관계 매핑 : @ManyToOne, @JoinColumn
+
+@Table(name="table 이름") -> 새로운 Table sheet 을 만드는것
+@Column(name="행 이름")   -> 그 Table 에 행을 만들어서 추가하는 것
+
+Owner extends Person  -> Person 에서 name 을 column 에만 넣어두고, 그걸 상속하면 Owner Table 안에 자동으로 들어감
+Entity 로 계속 써야하니까, name 같은거는 이런식으로 상속으로 가져다 table 에 넣는다.
+
+
+@NotNull  -  Null(불가) /(empty)"" (가능) /(blank) " " (가능)/      불가  -> validation 추가
+@NotEmpty -  Null(불가) /(empty)"" (불가) /(blank) " " (가능)/
+@NotBlank -  Null(불가) /(empty)"" (불가) /(blank) " " (불가)/
+
+
+
+@날짜                                               //Date, Calnedar 이제 안쓴다 개판임
+< LocalDate / LocalDateTime > 		( 아직 Claendar 에 SimpleDateForamt 조합 많이 쓰이는중)
+LocalDate currentDate = LocalDate.now();           // 컴퓨터의 현재 날짜 정보  (new 없이 만든다)
+LocalDate myDate = LocalDate.of(1991, 12, 06);     // 직접 입력
+        myDate                          //2022-07-04
+        myDate.getYear();	        //2022
+        myDate.getMonth();          // December 로 가져옴
+        myDate.getMonthValue();     // 12월 로 가져옴
+        myDate.getDayOfMonth();     // 6
+        myDate.getDayOfWeek();      // 요일
+
+// 날짜까지만 필요하면 이거쓰면되고, 시간까지 필요할 때는
+
+LocalDateTime current = LocalDateTime.now( );
+- 마찬가지로 getYear 등등 다 쓸 수 있고, 추가로
+current   =>  2022-07-04T16:00:51.159217100
+current.getHour => 15
+current.getMinute => 54   / Second 등등 시간관련 된걸 뽑아 쓸 수 있다.
+
+
+LocalDateTime currentDateTime = LocalDateTime.now();
+LocalDateTime myDateTime = LocalDateTime.of(1991, 12, 6, 6, 15, 30);
+
+LocalTime currenttime = LocalTime.now();
+LocalTime mytime = LocalTime.of(6, 17);
+
+
+- Calendar 사용법
+Calendar cal = Calendar.getInstance( ); // 이렇게 객체 생성해야됨. ( getInstance라는 static 메소드 보유 / new로는 안됨 )
+		Calendar 하위클래스 익명클래스 정의 + 객체리턴
+
+cal 은 거의 모든 데이터 다 가지고있음. 여기서 필요한거 뽑아서 사용하는 식
+
+cal.get(Calendar.YEAR);
+cal.get(Calender.SECOND); 이런식으로 get으로 뽑아 씀
+
+=> SimpleDateFormat 하고 연계해서 많이 씀
+
+-Date 는 많이 안씀 ( deprecated )
+Date d = new Date( );
+
+
+
+< SimpleDateFormat > 날짜 패턴 정해주기
+SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+sdf.format(now); 				  //이거 대소문자 구분 필수 /이게기본값
+				              // H - 24 구분 h - 12 구분
+ ("yyyy-MM-dd a hh:mm:ss E")    a => 오전/오후 표시
+			      E => 요일 표시 //띄어쓰기로 구분
+
+
+< DecimalFormat >숫자일때 쓰는 포맷
+double num = 1234567.89;
+DecimalFormat df = new DecimalFormat("###,###.##");
+		# => 자릿수 규칙만 정해놓는것, 정수 - 3자리마다 끊어라 / 소수점 아래는 소수점 두자리까지 표시해라 /
+									        ( 소수점 자리 반올림 적용 )
+sout( df.format ( num ) );  => 1,234,567.89
+                                    11,234,567.89 (o)
+		           111,234,567.89
+
+#은 기본적인 포맷을 정해준 것. 자릿수가 모자라면 모자란대로 그 포맷으로 그냥 집어넣음
+0은 꽉 채우기용
+DecimalFormat df = new DecimalFormat("000,000.#");
+			=> 자리가 남으면 반드시 0으로 채워라
+ 34567.84  => 034,567.8
+
+ - 0으로 채우기 쓰려면 000000 으로만 해야됨. # 하고 못섞음 ( 0##,##.## - 불가능 )
+ - 정수랑 소수는 구분됨 =>  "#.00" "00,0.##" "0,00.00" 가능
+
+출력이 40.0 밖에 안나오는데 강제로 40.000 까지 뽑게하고싶다
+DecimalFroamt("#.000")
+df.format(num); => 40.000
+
+음수 양수
+DecimalFormat("+###,###.#; -###.###.#;")
+이렇게 두개 박아두면 => 양수, 음수 들어올때 알아서 찾아서 들어감
+
+
+
+
+
+
+
+
+//
+(어노테이션 이용 - 라이브러리 필요)
+@DateTimeFormat( pattern = "yyyy-MM-dd" )    // 날짜 format 정해주기
+
+
+@Digits(fraction = 0, integer = 10)       // fraction : 소수점 자리수 / integer : 정수 자리수
+소수점 못쓰게하려면 faction=0 default 처럼 주고, integer 로 자리수 정해두기
+
+
+
+<소수점 자르기>
+1. printf
+System.out.printf("%.3f%%\n",(count/(double)N)*100);       // 기본세팅은 format하고 같다
+						  // % 라는 특수문자열을 쓰려면 %% 두번 써줘야 써진다.
+=> printf ( "%.3f"  ,  pi );              			  // ln 안되니까 \n 으로 해주고
+
+2. Math.round();  반올림                    Math.ceil(올림) Math.floor(버림)
+double pie = 3.14159265358979;
+System.out.println(Math.round(pie)); //결과 : 3
+System.out.println(Math.round(pie*100)/100.0); //결과 : 3.14
+System.out.println(Math.round(pie*1000)/1000.0); //결과 : 3.142
+
+< Random클래스 >   ( 비슷한 기능 )
+java.util.Random 클래스
+Random r1 = new Random( );
+r1.nextInt( ); => 정수(무제한)
+r1.nextInt( 100 );   => 정수 (0<= ? < 100) 난수
+r1.nextDouble( ); => 실수(무제한)
+
+
+3. String.format(); 반올림
+double pie = 3.14159265358979;
+double money = 4424.243423;
+System.out.println(String.format("% . 2f", pie)); //결과 : 3.14
+System.out.println(String.format("% . 3f", pie)); //결과 : 3.142
+System.out.println(String.format("% . 3f", money)); //결과 : 4,424.243
+
+
+
+<Bigdecimal> 숫자계산 소수점도 오류 아예 안나게 (돈계산)
+Bigdecimal money = new Bigdecimal(" 문자로 숫자를 쓴다는게 특징 ")
+연산은 + * 등 연산자 못쓰고 Bigdecimal 메소드를 써야한다.
+.add / .subtract / .divide / .multiply / .remainder  /  .compareTo  (비교) -> 0,1
+
+
+
+<Lombok 기능들>  -> public class 레벨에 선언
+1. @Getter @Setter
+
+2. @AllArgsConstructor    전체 생성자 생성 (this 버전)
+   @NoArgsConstructor    기본생성자 생성(default 아무것도없는 생성자 (){})
+
+3. @Tostring     generator 로 생성한 toString 기능
+
+4. @Slf4j          logging 기능 활성화    => log.info( sout 할 내용 );
+(Simple logging facade for j)
+
+
+
+<연관관계 맵핑>
+@ManyToOne                                // Table - Table 연관관계 매핑
+// category 는 많은 book 을 가짐 -> category 입장에서 one to many
+// type 은    많은   pet 을 가짐 -> pet 입장에서     many to one (많은게 나한테 온다)
+@OneToMany  @OneToOne   @ManyToMany
+
+< 연관관계 매핑 + cascade >  -  연관관계를 가진 두 엔티티에 CASCADE 속성을 설정하지 않으면 예외가 발생할 수 있다.
+cascade 전이 - 특정 엔티티에 대해 특정한 작업을 수행하면 관련된 엔티티에도 동일한 작업을 수행
+(cascade = CascadeType.ALL) 모든 cascade 를 적용
+(cascade = CascadeType.PERSIST) 엔티티를 영속화할 때, 연관된 엔티티도 함께 유지
+(cascade = CascadeType.MERGE) 엔티티 상태를 병합(Merge)할 때, 연관된 엔티티도 모두 병합
+(cascade = CascadeType.REMOVE) 엔티티를 제거할 때, 연관된 엔티티도 모두 제거
+(cascade = CascadeType.DETACH) 부모 엔티티를 detach() 수행하면, 연관 엔티티도 detach()상태가 되어 변경 사항 반영 X
+(cascade = CascadeType.REFRESH) 상위 엔티티를 새로고침(Refresh)할 때, 연관된 엔티티도 모두 새로고침
+
+<연관관계 매핑 + mappedBy>
+@OneToMany(mappedBy="category")    -> 주인이 아님을 알려줌. book 넌 category 형한테 매핑 된놈일 뿐이다
+
+< 연관관계 매핑 + fetch >    - 연관관계 엔티티를 매핑할때, 매핑하는 entity 를 즉시 가져올거냐, 지연해서 proxy 로 가져올거냐
+fetch 가져오기 - EAGER 즉시(동시에), LAZY 지연(프록시)
+Eager 로딩
+(fetch = FetchType.EAGER)
+즉시 로딩(EAGER) 전략을 사용 - 함께 조회 ( 쿼리 한번에 나감 )
+N + 1 문제(JPQL) - 쿼리를 1개 날렸는데, 그로인해 추가 쿼리가 N개 나간다 ( member 만 필요한데, team 까지 계속 쿼리 나감 )
+-> 개손해 => 실무에서는 LAZY 권장
+
+LAZY 로딩
+(fetch = FetchType.LAZY)
+getTeam()으로 조회하면 Proxy 객체가 조회
+getTeam().get(xxx)으로 Team의 필드에 직접 접근하려고 할때, LAZY 하게 쿼리가 나간다.
+이런 경우, SELECT 쿼리가 따로따로 2번 나감(네트워크를 2번 타서 조회) - 자주있으면 손해
+-> JPQL의 fetch join 을 통해서 해당 시점에 한방 쿼리로 가져와서 쓰기
+
+@ManyToOne, @OneToOne   - Default 값이 (EAGER) => 꼭 LAZY로 명시적으로 설정해서 사용!
+@OneToMany, @ManyToMany - Default 값이 (LAZY)
+
+
+
+@JoinColumn(name = "type_id")                 //  foreign(외래) 키 매핑  (생략가능 -> 자동생성)
+    private PetType type;                     // "필드명_참조하는테이블의 기본key(@Id)Column명"
+
+@OrderBy("Column이름 ASC/DESC")  Ascending Descending 오름차순(1,2,3) 내림차순(3,2,1) / 문자는 알파벳 순
+DB 에서 가져올 때 순서 , query 명령 Order by 와 같은 기능
+Set, Map, List 에서 효과가 있음    /   SortedMap, SortedSet 에서는 Sorted 된 순서로 가져오므로 의미가 없음
+Default - ASC  생략 가능
+
+< Collection 에서 Setter   =>   .add() >
+List / Set 같은 경우, getter 는 그대로 써서, List 등에서 꺼내서 쓸 수 있으나,
+Setter 는 애초에 Set, List 형태로 Setter 를 사용할  수가 없다. 여기에 data 집어 넣을 땐, .add 로 넣었었다.
+마찬가지로 .add() 로  setter 를 대신하는 거다. (값을 넣어주는 것)
+
+
+<Repository> org.springframework.data.repository.Repository    <- import 종류
+interface extends Repository<관리대상 Entity, Entity의 PK datatype>{}
+                                    <Member,  Long>
+extends CrudRepositoy         <= 얜 정의안하고 바로 사용 가능
+
+
+@LinkedHashSet - 그냥 HashSet 하고 똑같은데 출력 순서만 순서대로 나오게 해준다.
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+< DB >
+---------------------------------------------------------------------------------------------------------------------------------
+
+DB 연결
+1. interfacereposit 없이, SpringdataReposit 만으로도 된다.
+
+2. Springdatareposit 에서도 (1) extends Repository<M, Long> 의 경우는 바로 save 소환이 안되서, 정의 해주고 쓰면되고
+                           (2) extends CrudRepository<M, Long> 의 경우는 바로 소환이 된다. 정의 필요 없다.
+
+3. Service 계층의 필요성 -> 기본적인 save, find 기능들을 사용해서 뭔가 한층 높은 걸 만들거나,
+                          중복방지 같은 기능들을 추가하여 기능으로 만들고자 할때 쓴다.
+  사실상, Service 계층없이, repository 기능만 사용할거면, Controller 에서 service 대신 repository를 소환해서 Autowired 해서
+  사용하면 된다.
+  이 경우, Configuration 조차 없어도 DB 에 저장이 가능하다. 사실상 DB에 접근할 때 필요한건 Repository 이다.
+
+4. 하지만 Service 계층을 생성할 경우, 이를 Repository 와 연결해주는 절차가 필요하다
+  (1) Service 계층 @Transaction(org)
+  (2) Configuration 을 통해 DB 에 등록 (Repository 와 연결)
+
+5. Entity 필드들 @Column 연결 필요성 - 일단은 안해도 됬다.
+   - 해도 된다. 하는걸 기본으로 생각해두자. (변경점들 적용가능)
+
+
+.toEntity() 생성해서 사용하는 법
+1. 기본 Entity 에 생성자를 만들어야 한다.
+
+2. @PostMapping 쪽에서 Board board = form.toEntity();  form 을 entitiy 로 만든걸 Board 객체 타입으로 담고자 한다.
+
+3. form class 에서 toEnity(); 메소드 정의
+   public Board toEntity(){
+     return new Board(id, title, contents);}      // Board 생성자의 type 에 맞춰서 들어갈 값들을 넣어준다.
+
+ ->  DTO 객체인 form 을 받으면 ->  id title contents 순으로 넣어서  -> Entity 로 만들어서 쓰겠다.
+
+
+
+4. 저장 등 기능 이용
+    Boardreposit.save(form.toEntity());
+
+++. 이걸 하는 방법이 기존의
+1. BoardEntity 소환
+    BoardEntity boardentity = new BoardEntity();
+2. getter setter 이용해서 form 값을 boardentity 객체 entity 에 담기
+    boardentity.setTitle(form.getTitle());
+    Boardreposit.save(boardentitiy);
+
+
+< DB 언어 >
+1. DDL (Data Definition Language)  - 데이터베이스를 정의하는 언어
+DB 데이터를 생성, 수정, 삭제하는 등의 데이터의 전체의 골격을 결정하는 역할
+
+create : 데이터베이스, 테이블등을 생성
+drop : 데이터베이스, 테이블을 삭제
+alter : 테이블을 수정
+truncate : 테이블을 초기화
+※데이터 베이스 관리자나 데이터베이스 설계자가 사용
+
+2. DML (Data Manipulation Language)  - 데이터 조작어
+정의된 DB에 입력된 레코드를 조회, 수정, 삭제 등의 역할
+
+select : 데이터 조회
+insert : 데이터 삽입
+update : 데이터 수정
+delete : 데이터 삭제
+※ DB 데이터를 실질적으로 처리하는데 사용하는 언어
+
+3. DCL(Data Control Language)
+DB에 접근, 객체에 권한을 주는등의 역할
+
+grant : 특정 데이터베이스 사용자에게 특정 작업에 대한 수행 권한을 부여
+revoke : 특정 데이터베이스 사용자에게 특정 작업에 대한 수행 권한을 박탈, 회수
+commit : 트랜잭션의 작업을 저장
+rollback : 트랜잭션의 작업을 취소, 원래대로 복구
+
+
+
+
+< SQL   select 문  잡기술들 >
+기본 => SQL 에서 String 은 ' String ',   따옴표 한개로 감싼다. // 이거 무의식적으로 " 쌍따움표로 실수 많았다.
+           주석은 --  짝대기바 두개다
+
+순서 : SELECT ~ FROM ~ WHERE ~ GROUP BY ~ HAVING ~ ORDER BY ~ LIMIT ~ ;
+
+select name from member where height>160 AND member_num<4;       //각기다른 column 조건 AND 로 연결
+
+select name from member where height BETWEEN 163 AND 166;           //BETWEEN 사용 (이상 이하)
+
+select name from member where address = '경기' OR address = '전남' OR address = '서울';
+
+select name from member where address  IN  ('경기', '전남', '서울');                // IN 으로 OR 문 합치기 (이거나 이거나)
+
+select name from member where name LIKE '%대';       -> 소녀시대          //  LIKE 활용 / % = 모든글자
+
+select name from member where name LIKE  '_ _ 시대';                       //  _ _    < = 글자 수 (2글자)
+
+select name from member where name LIKE '%소녀%';   ->소녀시대/우주소녀    // 이름에 소녀 들어가면 다찾음 %A%
+
+select * from member ORDER BY height;                                           // ORDER BY 정렬 (DEFUALT 오름차순)
+select * from member ORDER BY height DESC;                                                                          ASC;(생략)
+
+select * from member ORDER BY height DESC , weight ASC;         // height로 먼저 정렬 -> 동률일때 weight로 정렬
+
+select * from member ORDER BY height LIMIT 3;                      // LIMIT  정렬순에서 3개까지만 보겠다.
+
+select * from member ORDER BY height LIMIT 0 , 3;                // index[ 0 ] 번째 부터   3개 보겠다.
+
+select address from member;                -> 서울 경기 경기 서울 서울 경남 서울 전남 경기 경남 서울 경기 . . .
+select DISTINCT address from member;    -> 서울 경기 경남                 // DISTINCT 중복 제거하고 종류만 뽑아서 보여줌
+
+
+select   Product, SUM(price)   from buy   GROUP BY   Product;         // GROUP BY  -> 그룹화, 집계함수와 같이 사용
+                                                                                    // "그룹"별로 묶어서 -> (어떤 칼럼)을 "함수" 해라.
+                                                                                   //SUM / AVG / MAX / MIN / COUNT / COUNT(DISTINCT)
+-> 시계 300
+-> 컴퓨터 200
+-> 책 5
+
+
+select id, sum(price*amount) from buy group by id;   // 그룹 id 별로 총구매금액  / sum ( prcice * amount ) 활용!
+
+select id, avg(amount), avg(price) from buy group by id;   // 그룹 별로 방문(구매)할때마다, 평균 몇개사고 얼마 쓰는지
+
+
+< GROUP BY  <- WHERE 절과 함께 쓸 수 없다 => HAVING 절과 쓴다. >  순서 :  group by ~ HAVING ~
+                                                                                                조건
+select id, sum(price*amount) from buy GROUP BY id   HAVING    sum(price*amount) > 300;
+
+id 그룹별로 묶어서 총가격을 더해라. 그중에(HAVING) 총가격 더한게 300 이상일 때만 select 해라
+
+
+
+
+
+
+select sum(price) from buy;                   // 집계함수 자체만 select 할수도 있다. 총 구매 금액
+
+
+< COUNT( ) >
+select count(*) from buy;                                  // buy 테이블 총 행data 개수    12개
+select count(category) from buy;                        // category 행data 개수 (null 값 제외)   9개
+select count(DISTINCT category) from buy;            // category 행data 개수 (중복제외) 3개
+
+
+
+
+
+
+< 알리아스    -   별칭주기 > 진짜 column 이름은 그대로 //  Table 에 보이는 모습만 바꿈 >
+
+select height 신장 ,  debut "데뷔  날짜" from member;     //한칸 뛰고 별칭 / 별칭에 띄워쓰기하려면 " " 쌍따옴표
+
+
+<DB 에서 SQL 문으로 insert 하기>
+insert into boardentity(id, title, contents)
+values(7, 'title making', 'contents making');
+
+insert into boardentity values (7, 'title making', 'content making'),              - 칼럼명 명시 생략 가능
+                                     (8, '한번에 여러개', '만들기 가능'),           -  쉼표만 잘 써주면
+                                     (9, '계속 인서트', '할필요 없이') ;
+
+<SQL update 문>                                                                                   PK 로만 가능 (safe mode)
+update shop_db.member SET member_addr = '바꿀이름 동작구 빅뱅로'  WHERE ( key칼럼이름 = 'gd');
+
+update
+	member
+set
+	title = ' 한방에 ',
+	contents = '수정하기'
+where
+	id = 3;
+
+
+
+
+*주의 : WEHERE 안해주면 전체가 SET 으로 수정된다.
+
+<SQL delte 문>                 PK 로만 가능(safe mode)                 // * 없이 그냥 from  ( from 도 생략가능)
+delete from member where member_id = 'hero';
+
+<MySQL 날짜 date 형식>
+220701 ( YYMMDD)
+20220701 (YYYYMMDD)   둘다 된다.
+
+<MySQL Int type 형식>
+1500                      <-  이거로 쓰자
+'1500' 둘다 되긴한다.
+
+CHAR type 일때는 ' 이름 ' 처리 안해주면 안됨
+
+
+<DB 생성 >
+DROP DATABASE IF EXISTS member_db;               (초기화하면서 다시 만들고 싶을때)
+CREATE DATABASE member_db;
+
+<DB 사용 선언 USE>
+USE member_db;   (더블클릭 bold 글씨)
+
+
+
+<DB 에서 table 직접 생성할때>
+Create table TABLE명 (
+                         id Long primary key,
+                      username varchar(255));
+                Entity 에서 중간에 대문자로 한번 강조줬으면, DB 에선 그걸 _ 로 받아들인다. _ 로 끊어서 생성해줘야함.
+
+< Table 이름변경 >
+ALTER TABLE 테이블이름 RENAME 새이름;
+
+
+< Column 추가 >                                    TYPE          속성
+ALTER TABLE  테이블이름  ADD  칼럼이름 VARCHAR(45) NOT NULL;
+
+<Column 제거 >
+ALTER TABLE 테이블이름  DROP 칼럼이름 ;
+
+<Column 변경 >
+ALTER TEBLE  테이블이름  MODIFY  칼럼이름 CHAR(10);                    MODIFY - TYPE 만 변경
+
+ALTER TABLE 테이블이름 CHANGE  칼럼이름  새이름  CHAR(10);         CHANGE  -  이름, TYPE 다 변경 가능
+
+
+
+
+
+< MySQL 에서 table 생성 create문 >
+create table product(
+                           productid INT NOT NULL,
+                           productname CHAR(20) NOT NULL,
+                           productnum INT NOT NULL,
+                           PRIMARY KEY ( productid ) ) ;
+ PK  선언 (1) - productid INT NOT NULL PRIMARY KEY, 이렇게 칼럼뒤에 특성으로 붙여서 선언해주거나
+            (2) - 위처럼 따로 선언 primary key( )
+
+
+< PK SEQUENCE 선언 > - AUTO_INCREMENT
+( ID LONG AUTO_INCREMENT NOT NULL PRIMARY KEY,  )
+
+
+< FOREIGN KEY 선언 >
+CREATE TABLE BUY(
+                 이걸로할게     참조      테이블명 (칼럼)
+FOREIGN KEY (mem_id) REFERENCES member(mem_id)
+);
+
+
+
+< MySQL 에서 table 제거 drop문 >
+drop table selling;  바로 table 명
+
+<MySQL 에서 INDEX 생성문>
+                        인덱스이름               테이블명       (칼럼명)-괄호이용
+CREATE INDEX  idx_member_name   ON   member ( member_name );           -> column 에 index 붙이겠다.
+
+붙여놓으면 자동으로 index로 찾음 (non-unique key lookup 방식)
+
+
+< MySQL 에서 VIEW 생성 >
+
+create VIEW member_view  AS  select*from member;    // view 생성
+
+select * from member_view;   // view 이용 view 로 뽑기
+
+
+< MySQL  - (Stored) PROCEDURE  생성 > = 메소드화
+
+DELIMITER  //    ( 한칸 띄고 // )
+CREATE PROCEDURE mypro( )
+BEGIN
+select * from member where ~ ;
+select * from product where ~ ;
+END //
+( 여기에 DELIMITER ;    닫아주는 것도 있는데 일단 안닫아야 만들어짐 - 1064 ERROR )
+
+CALL mypro( );
+
+
+< Dummy Data 설정 >           // 만들어 놓으면 서버 껏다 켜도 계속 유지되는 DUMMY DATA
+- Resources  -> 새파일.sql   생성   -> INSERT INTO 테이블명 ( TYPE ) VALUES (  ~ ) ;
+
+
+
+< SQL > select, delete, insert, update
+- DB 와 대화하기 위해 특별히 디자인된 언어   ( 영어하고 비슷 select from where )
+- DB =>
+1. RDB(Relational) =   SQL(90%)  - mysql, postgresql, sqlite        - 대부분 사용(회사,정부기관,은행)
+                                          Excel하고 비슷   Table = Sheet / Row Column  ( 정돈됨 / 엄격함 )
+
+2.  Non-RDB       = Non-SQL(10%)  (Not only SQL)
+(1) Document DB  -  MongoDB - data를 Json document 형태로 저장  (Table (X) - 엄격한 구조)
+                       -  어떤 type, 어떤 종류의 Data 든지 다 저장 가능    ( 자유 - 개판 )
+
+(2) Key-Value DB
+
+[a] Cassandra DB => column wide DB
+  읽고 쓰기 개빠름
+  많은양의 data 저장 ->많은 data에서 빠르게 읽어와야할 때 (Apple/netflix/insta 등등 data 저장하는데 씀)
+  검색엔진에도 적절 (빠르게 읽어옴)
+[b] Dynamo DB => Serverless / distributed key-value DB (분산된) / 아마존이 만든 DB
+  언어학습앱 - 매초 2400개 읽어오기 가능
+  어떤작업(읽기, 쓰기 등) 할건지, 미리 고려해서 사용해야 함 (제한적) - SQL 사용할 수 없으므로
+
+(3) Graph DB   (관계망 DB)
+- column 이나 document 같은거  필요 없을 때 사용
+- 그러나 각 node 들 사이의 관계를 알아야 할 때 사용
+- facebook 등에 사용 - 각각의 entity 저장 -> 관계망으로 연결
+
+
+(3) Graph DB
+
+
+대부분(90%) SQL 로 다 커버 가능
+ 근데 SQL 잘 모르는 이유
+-> ORM  ( Object Relational Mapping )
+         => 파이썬 코드를 자동으로 SQL 코드로 바꿔줌 (장고 ORM)
+                  Node.js          <--------------------     (type ORM / Sequelize)
+
+- ORM 문제발생하거나 한계 있을때 직접 SQL 써야함 - 원리와 개념 배워야함 SQL
+
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------
+< HTML >
+---------------------------------------------------------------------------------------------------------------------------------
+XML - Extensible Markup Language         -   모든 기기 통용되는 http 가 던지는  Data 언어 / 사용자정의 html
+
+JSON - JavaScript Object Notation     -   JavaScript 방식을 차용한 객체 표현식
+
+
+MVC 모델 연결고리 개념
+
+Template View (HTML) - ${variables}
+
+Controller (JAVA) - @GetMapping
+
+Model (연결고리) -  model.addAttribute(" ${HTML Key} ", JAVA 변수 );
+
+//Template 의 view 를 단순 출력하려면 Controller 만 있어도 된다. 근데 변수가 들어가야 할 Template 자리들이 있으면
+거기에 변수를 담아줘야 할 연결고리가 필요하다. ( XX님 환영합니다.)  이걸 해주는게 Model 연결고리 key - value
+
+<HTML>
+doc -> 기본 설정
+
+HTML - CSS 연결
+<link rel="stylesheet" href="Hello.css" >
+
+HTML - JS 연결
+<script async/defer src="Hello.js"></script>
+
+async - 병렬처리 (동시) - script간에 의존관계 있을 시 문제 발생 (순서 X)
+       -  방문자 수 카운터나 별도의 스크립트 같이 독립적이거나 실행 순서에 의존하지 않는 경우 사용
+
+defer - 먼저 html문을 다 읽고 마지막에 "순서대로" script 실행
+       -  스크립트가 실행되기 전에 먼저 페이지가 화면에 출력됨 (유의)
+       -  DOM 전체가 필요한 스크립트 (스크립트 간에 실행 순서가 중요한 경우) 사용
+
+레이아웃 Template 화
+1. Templates 에 layout 디렉토리 만들기 ( 레이아웃 세팅 창고 )
+2. header - 맨 처음부터 ~ content 직전까지
+3. footer - content 끝 부분 ~ 맨 끝까지    (<head> , <body> 는 기준점이 아니다. content 만이 기준점이 된다.)
+4. {{>layout/header}}  끝
+
+
+< HTML >
+< Bootstrap 기술들 >
+m : margin 공백      p : padding 공백(bolder-contents)          bolder : 테두리
+t : top  b : bottom  l : left  r : right
+=> <div class="mb-3 mt-3 p-2">   <p class = 가능 >
+
+&nbsp; 1칸 &emsp; 4칸
+<br> 한줄
+
+
+
+align
+<div align="left/right/center/justify">
+
+
+class = "form-control"
+<div class = "form-group"> 하나하나 -> 입력 form 하나하나 그룹화 시켜줌 (감싸주기)
+<input/textarea class = "form-control">    -> 입력 form 을  bootstrap 자체 스타일로 만들어줌
+
+form 에 label 달기
+<label class="form-label">제목</label>
+
+button 만들기 (form 던지기)  class = "btn btn-XXX"
+<button type="submit" class="btn btn-primary">작성</button>
+primary(blue) success(green) danger(red) warning(yellow)
+
+
+container  -  width
+<div class="container">  width 넓이 고정값 (bootstrap)
+<form class="container-fluid">  width 넓이 100%
+
+@PostMapping 만들기
+
+1. form 태그 -> 속성 action / method
+<form action="/board" method="Post">
+
+2. DTO class 만들어주기  <= 사용자의 입력값(Form data)을 받아올 그릇! ( MemberForm )
+private String title;
+private String contents;
+-> constructor, getter setter, toString(sout 확인용) 필요한걸로.
+이 DTO class 객체가 PostMapping 메소드의 파라미터로 들어가서 입력값을 받아낸다.
+
+3. <input/textarea> 입력 form 에   name=" "  속성 추가   (연결고리)
+<input type="text" name="title">
+<textarea class="form-control" name="contents">
+=> DTO class form 객체의 필드명과 맞춰서, 사용자의 입력값을 DTO 가 받아낸다.
+
+4. @PostMapping("action")
+public String( DTOClass form ) { form.getname(); return "redirect:/board" }
+
+
+
+< HTML  Link 거는 법 두가지 >
+
+1. <a href = " " > 구글 </a>
+
+   <a href =" " class = "btn btn-primary" > 구글 </a>       // 앵커 에도 class 로 버튼 달 수 있다.
+
+
+2. <form action = " " >
+       <button type = "submit" class = "btn btn-primary"> 구글 </btton>
+   </form>
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+< 게시판 >
+---------------------------------------------------------------------------------------------------------------------------------
+
+
+< DB 에서 조회해서 web 에 뿌리기 - READ >
+
+변수를 품은 URL  ( 이하 변수 URL  )
+
+< @GetMapping 에서 변수URL 로 연결  -  HTML 링크 이용 >
+
+@GetMapping("/board/ { id }/" )                     => { id }  < - 변수 URL
+
+public String show ( @PathVariable Long id ){     => @PathVariable  < - 변수URL 값을 파라미터로 가져오겠다.
+
+
+Optional<Board> boardEntity = boardrepository . findById(id);     // 입력받을 변수URL을 pk값처럼 사용
+                                                                                  // repository . find 해서 찾은 객체를 Entity 에 넣기
+                                                                                  ( DB에서 data 가져오는건 Repository 역할 )
+                                                                                                     <DB>
+                                                                                                     <JPA - Repository>
+이 Entity 를 VIEW 에 뿌려주면 되는데, 그러려면 Model 이 필요함                      <MVC>
+
+public String show( @PathVari Long id , Model model ) { model.addAttribute("boardkey", boardEntity); ~} // 모델에 담고
+
+VIEW 하고 연결 (mustache 활용)
+1.   Model 에 "변수" 만 담기
+( 객체 자체 X  / 객체 안의 변수 O   =>   {{ username }}  - >  ("username" , entitiy.getusername( ) );      )
+2.  Model 에 "객체" 자체를 담기
+( 객체 자체 O   =>  {{BoardEntityKey}}  -> ("BoardEntityKey" ,  BoardEntity )
+
+ {{ #BoardEntityKey }}    ~   {{ / BoardEntityKey }}            -  객체 가져다 쓸 범위 지정 하고
+
+ <td> {{ id }} </td>
+ <td> {{ name }} </td>                       - 객체 안에 변수들을 가져다 {{ }} 로 쓰면 됨
+
+
+- 따로따로 객체 안의 변수를 model 에 넣어서 하는거
+{{ id }}  -> model.addAttribute("id", entitiy.getid());
+{{ name }} -> model.addAttribute("name", entitiy.getname());
+.... 계속 따로따로 하나하나 다 모델에 담아야 함.
+
+
+
+담을거 많으면
+
+=>  객체 자체를 model 에 담아서 쓰자!
+
+
+
+< HTML 에서 객체 model 쓰는법 >
+1.  {{ # resultkey }}    //  Key값 소환. 객체를 #여기서부터   /저기까지  가져다 쓰겠다.
+  <th> {{ id }} </th>
+  <td> <a href = " http://localhost:8080/board/ {{ id }} " {{ title }} </a> </td>
+                                                     // 링크걸때, 변수 URL 값을 객체 가져왔으니까 거기서 {{ id }} 로 그대로 쓰면됨
+    {{ / resultkey }}
+
+2.   <td> <a href = "/board/ {{ resultkey . id }} > {{ title }} </a> </td>                 // {{ 객체 . id }}  메소드처럼 뽑아서 쓰기
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+< @PostMapping 에서 변수URL로  링크시키는법  => REDIRECT  >
+
+변수URL 은  < @GetMapping 에서 "링크"로 다른 @GetMapping 페이지로 단순 이동 >
+               1. @GetMapping{ "/board/{ id }/  로 일단 받을 페이지만 만들어놓고
+               2. 그 URL 로 들어가는건, showall 전체조회 HTML 에서 글 눌렀을때의 "링크"로 URL 을 걸어서 들어가는 것
+               3. Edit 에서도 마찬가지로, "링크"로 걸어둬서 들어가는 것
+               4. HTML 에서는 "/board/ {{ boardentity . id }} / edit / "   이런식으로 id 받아서 링크걸기가 가능해서
+                  그걸 링크로 이용하는 것.   Controller 에서는 그 url Link 를 받을 @GetMapping 만 해두는 것.
+
+               < @PostMapping 에서 data를 Repository 에 Save 하면서, "동시"에 링크 >
+                - 글 작성페이지에서 그냥 단순 다른 변수url @GetMapping HTML 로 이동하게 하는 버튼은 링크걸어서 만들면
+                  가지긴 한다. 근데 의미가 없다.
+                  "작성" <- HTML 변수URL 걸어놓음 <- 껍데기만 가지는 것. 정작 PostMapping 행동은 안됨.
+
+                - 내가 하고 싶은건, "작성" 이라는 PostMapping 행동  에다가  동시에  "링크" 까지 걸어두고 싶은 거다.
+                => @PostMapping 에 리다이렉트를 이용한다.
+                               Redirect :   "  " + saved.getid( );      ( 이때, HTML URL 링크(action), @PostMapping ( URL )
+                                                                                   이 두개는 GetMapping 주소로 해놔도 무방)
+
+                - @GetMapping ->  Model 에 객체 담아서 -> HTML 에서 {{ 키값 }} 으로 뽑아서 링크로 연결
+                - @PostMapping-> <form 태그에서 name = " " 이용 ->
+                                           form클래스를 만들고 <- 이걸 파라미터로 받아서 그 안의 data 들을 name 으로 연결
+                                         ( 모델 사용 X ) / 링크는 리다이렉트 이용
+
+
+변수 URL 이 들어왔을 시에 page 는 @GetMapping으로 만들어 뒀고,
+글을 작성한 후, @PostMapping 에서  저장함과 동시에 자기가 작성한글(변수 URL)로 이동하게 하고 싶을 때,
+=> 리다이렉트
+
+일단, 3위일체
+
+                   1. form action = "url"   2. PostMapping("url") 3.  redirect : "url"
+
+
+-  평범한(변수없는) URL로 보내고 싶으면, 3위일체로 그 주소로 통일 해준다.
+-  변수 URL 로 보내고 싶으면
+
+ = > 1. 2. 는  @GetMapping 주소랑 똑같이 해도되고
+                         redirect 주소에서 승부를 본다.  ( redirect 만 바꿔도 적용이 된다. )
+
+
+   return " redirect : /board/ " + saved.getId( );     (객체 저장한거에서 id값 꺼내와서 직접 url 에 더해주기)
+            => localhost:8080/board/12     이렇게 되서 redirect 된다.
+
+
+
+< findAll 전체 데이터 조회 READ   -  형변환 필요 (Iterator -> List) >
+public String all (Model model) {
+	List<Board> result = (List<Board>) Reposit.findAll( );            // 기본이 iterator 반환타입이라
+                                                                                         1.강제형변환 2.Reposit 가서 findAll메소드 overriding
+-> 모델 담고 VIEW 뿌리면 mustache 가 자동으로 "반복" 하면서 List 에 담긴 data를 뿌려준다.
+
+
+
+< 데이터 UPDATE   <=  수정form 만들기  - DTO 폼 객체 이용 (data 그릇)  >
+
+(1) edit link 만들기
+  <a href = "http://localhost:8080/board/{{ boardkey . id }}/edit/" > EDIT </a>     // 객체 소환안하고 바로가져오기 스킬
+                                                                                                    //해당 변수 url 로 이동
+
+
+(2) Controller 에서 @PatchMapping 하기      ( html 지원안해서, GetMapping 으로 구현 ) // 원래 Edit => @PatchMapping
+
+  @GetMapping("/board/{ id }/ edit /")                                         // edit 링크 던진걸 잡음
+
+public String editpage( @PathVariable Long id, Model model ) {        // 입력된 변수URL 을 PK로 쓰고
+
+Boardentity  editentity =  Repository.findById( id ) . orElse( null );       // DB에서 그 PK 로 수정할 data 가져오기 Repository
+                                                                                              ( 제목,내용 등 포함한 data entity임 )
+model.addAttribute( "editkey", editentity );                                   // Model 에 담아서 HTML 에서 entity 데이터 쓰자
+
+return "Board/boardedit";
+
+ }
+
+(3) boardedit  HTML 만들기
+ 처음에 글작성하는 페이지 Board HTML 하고 거의 똑같겠지 - 그대로 가져오고
+ <form action = url은 일단 @GetMapping 이랑 똑같이 해둬도 무방.   (리다이렉트로 승부)
+          method 가 원래 - Patch 나 Put 때려야되는데 /  + @EditMapping
+                              - form 태그나 a 는 Get Post 만 지원해주므로, 일단 Post로 구현
+
+
+ model 에 담은 수정할 객체 => input 입력부분이랑, textarea 입력부분에 넣어주기
+{{ # editkey }}
+
+1. input => value 이용    ( input은 닫기가 없다 )
+<input type = "text", class = "form-control", name = "title",    VALUE = " {{ title }} " />
+
+
+2. textarea  => 그냥 사이에 넣어주기
+<textarea class = "form-control" rows = "5" name = "contents" >    {{ contents }}    </textarea>
+
+{{ / editkey }}
+
+
+3. <input type="hidden" name="id" value="{{id}}" />    추가            // title, contents 처럼 id 도 (숨겨서) 넣어놓는다.
+                                                                                         =>  DTO (폼객체)랑 연결
+
+
+(4) DTO이용 => @PostMapping 해서 DB에 수정본 올림과 동시에 Redirect 시키자
+
+1. url 은 GetMapping과 같게 맞춰놔도 무방
+
+2. DTO 폼객체 는  본래 쓰던 BoardForm 쓰면 됨   +    id추가  ( 리다이렉트용 )
+
+3.  DTO 객체 파라미터로 써서 <- 사용자가 글 쓴거 받아오고
+   그거 getter setter 로 boardentity 에 넣자.
+
+4. boardentity <- Repostory 에 . save 하면 끝나는데, (DB저장)
+  그 전에, " 찾아서 있으면 " 조건 넣어주자 (오류 방지)
+
+    Boardentity  edittarget =    Reposit. findById ( boardentity.getid( )) .orElse(null);
+
+    if ( edittarget != null ) {
+		Reposit.save(boardentity); }
+
+5. 마지막으로 리다이렉트 시켜주자
+	return "redirect : / board /" + boardentitiy.getid( );
+
+
+
+
+
+
+<  게시판 Delete 만들기 >
+
+=> "삭제" 라는건, 어떤 페이지를 생성하거나 그런게 없다.
+=> 그냥 해당 글에서 삭제 누르면 삭제되었습니다 정도 뜨면서, 다시 글 목록으로 가진다.
+=> 즉, @DeleteMapping 에서 바로 Repository.delete 이용해서 지우고, 리다이렉트로 글목록으로 보내면 끝.
+    ( html 은 지원 안해줘서 일단 @GetMapping 으로 구현 )
+    이걸 실행할 때, 새로운 URL 을 만들어서 거기서 작업해야함 ( 눈에 보이진 않는 "가상의 URL" )
+
+      해당글 url -> ( delete 전용 가상url - 여기서 삭제만 진행 ) ->  리다이렉트 : 글 목록
+
+
+1. 해당 글에 Delete 링크 생성   => 가상 URL ( 해당 { id } 포함한걸로 링크 걸어줘서, 그거 받아서 사용할 수 있게 하자 )
+                                           -> board/ { id } / delete /
+
+2. @DeleteMapping ( board/{id}/delete/ )      ( 여기선 GetMapping 구현 )       // 던진거 받고
+
+     public String delete ( @PathVari Long id )  {                  // HTML링크로 id 받아온거 이용
+
+	//" 찾아서 있으면" 구현
+   	Reposit.findById(boardentity.getid( ) )
+            if ( != null ) {
+
+                Reposit.delete( boardentitiy ); }                         // 리포지터리에서delete 해주면 끝. DB에서 날라감
+
+3. 리다이렉트 GetMapping 에서 바로 시켜주기   ( 삭제는 return 에서 받을 HTML이 없다. 바로 리다이렉트로 조진다 )
+
+
+
+4.  <Alert> "삭제되었습니다" 구현하기
+
+ (1) RedirectAttributes  이용         ( Model  친구 )   => 리다이렉트 될 때,  속성 추가
+
+public String detle (@PathV Long id,  RedirectAttributes rttr ) {
+
+~~ delete 기능 구현할 때!
+
+if ( != null ) { Reposit. delete( boardentity ) ;
+
+	          (Flash :  일회용, 휘발성)    Key값         메세지
+      		rttr. addFlashAttribute ( "msg" ,  "삭제되었습니다." ); }
+
+
+(2) 리다이렉트 될 HTML 에 넣기    (  이걸 공통으로 쓰이는 레이아웃 header 에 넣어놔도,
+                               			if 로 삭제할 때 msg 쳐지도록 설계된거라, 삭제할때만 구현 됨  )
+
+{{#msg}}
+  <div class="alert alert-primary alert-dismissible">
+      {{msg}}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" ></button>
+  </div>
+{{/msg}}
+
+//   ' # / '  로 영역표시 안해주면, method 없다고 에러남
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+< RestAPI 방식으로 게시판 DATA 가지고 놀기 > => RestAPI / JSON 방식
+
+* (1). MVC 방식 => @Controller  에서 VIEW 페이지로 Return 한다 ( Model 이용 )
+       = 웹에 HTML 로 내리느냐
+       => HTTP 에서   <!doc HTML> 으로 반환 해서 Client 에게 보냄
+
+  (2). API  방식 => @RestController  에서  return 값으로 직접 데이터를 가져오고, 생성하고 한다. ( View 가 아예 없음)
+       = 웹에 Data 를 바로 내리느냐
+       => HTTP 에서   Data 자체를 반환  -  text -> text 그대로
+                                                  -  객체 -> { "key" : "valuse" }
+
+ < HTTP 의 요청 / 응답 코드 >            -   (* JSON placeholder 사이트 /  **Talend API TESTER 이용(이게 좋음) - 웹스토어 )
+
+ * HTTP 요청 방식 -> GET / POST / PATCH(PUT) / DELETE
+
+                   해줘          여기서       버전
+요청 형식 =>   GET      /board/10/    HTTP/1.1
+                Host : localhost:8080  / jsonplaceholder.typicode.com   <- URL 본체 주소 (Host)
+                                                                                        <Http HEADER> = 편지봉투
+
+                  " id = name = title = content = "            <- 요청 내용 <Http BODY>    = 찐 내용
+
+                            <상태정보>
+응답 형식 =>  HTTP/1.1   404(NotFound)  200(응답OK)  201(생성OK)  500(서버내부Error - Syntax 문법 Error포함)
+                  편지봉투내용 세세하게 풀어서 < Http 응답 Header >
+
+                   " id = name = title = content = "           <- 응답 내용 <Http 응답 BODY>
+
+
+
+
+ < RestAPI 방식 >
+       => Data 만 내려주고, 이걸 가지고 Client 가 각자의 VIEW 로 ( Web, 안드로이드, 아이폰 . . . ) 만드는 것
+       => 웹서버의 자원(Data)를 Client 기기 종류에 구애받지않고 사용할 수 있게 하는 설계방식
+       => 모든 기기에 통용, 호환 가능한 "Data" 형식으로 반환
+       => 과거엔 Xml  ( Html 형식 -  <boardform> <id> 2 </id> <title>제목 </title> ...
+       => 이젠 JSON 방식 { key : value, key : value }
+                         응용 { "id" : 1, "name" : "park",                                      //쉼표로 구분
+                                  "address" : { "city" : "newyork", "street" : "str503" }    // JSON 안에 JSON 내포 형식 가능
+                                  "hobbies" : [ "sing", "swim", "book" ]                     // 배열 형식 가능
+                                }
+
+
+ < RestAPI 사용법 >  => 기존 Board 데이터를 CRUD 하기 위한, RestAPI 를 구현하시오.
+
+* API 전용 Controller 생성 => return 에서 data 자체를 return한다! ( 마치 main 처럼 )
+                                  => 기본 @Controller 는 view Template 을 return 했기때문에 전체가 다 public String
+                                  => @RestController 는 직접 data를 return 하므로,
+                                         그 data Type 에 맞춰서, 메소드의 Type 도 정해야 한다.
+ @RestContorller 선언
+
+ * Repository 에서 CRUD 하는 것이므로, 일반 @Controller 와 마찬가지로 Repository 가져와서 Autowired 필요
+	private final Boardreposit boardreposit;  //private 안해주면오류남
+             @Autowired 생성자;
+
+1. GET     (글전체 select 해서 뿌려보자)
+@GetMapping("/api/allboard")
+public List<Boardentity> boardindex( ) {
+	return boardreposit.findAll( ); }
+
+ GET      ( 개인글만 select )
+@GetMapping("/api/allboard/{id}")
+    public Boardentity eachboard(@PathVariable Long id){
+
+        return boardreposit.findById(id).orElse(null); }
+
+
+
+2. POST   (글작성)
+=> MVC 에서는 Form DTO객체와 -- View HTML 의 <form태그> 사이에 name = "title"  연결고리가 있어서
+    사용자가 글을 작성 -> HTML 에서 받은걸 -> name = "title"으로  DTO 객체에 전달
+=> API 에서는 VIEW 자체가 없다. 연결고리가 없다.
+=> @RequestBody  직접요청  => HTTP- Requst- Body 부분을 가져다 쓰겠다.
+
+@PostMapping("/api/allboard")
+public Boardentity create( @RequestBody Boardform dto ) {    //Http RequstBody 부분 가져다가 DTO 객체에 넣겠다.
+ 							=> 연결고리 생김
+           Boardentity boardentity = new Boardentity( );
+             boardentity.setID( dto.getid( ) ); 다 담아주고
+
+	return boardreposit .save(boardentity);  똑같이 해주되, 이걸 직접 return 해주면 된다.
+                                                 => return Type 이 Boardentity 객체 이므로, 메소드의 type도 똑같이 맞춰준다.
+
+//생성할때는 RestAPI 에서 id 안주는거다 자동생성임. ( Repository 계층에서 보낼 때는 되긴 했는데, 지양하자.
+						service 계층으로 보낼 때 id 넣어서 보내면 오류 났음 )
+
+3. PATCH  (글수정)
+
+*ResponseEntity ( 클래스 ) => 여기에 entity 객체를 담아서 => "상태코드" 생성가능
+ResponseEntity . status ( Httpstatus.OK ) . body ( boardentity );  => body ( entity ) / status 주면서, 엔티티는 body에 담는다.
+
+* . Patch( )  메소드 생성 ( overriding )
+// target.patch(boardentity)      // update(Long id, boarform dto){}
+                                        //target은 변경할 게시글을 가져온거고(id) / boardentity는 수정할 내용 dto를 담은 객체
+
+
+ (1) findById 한 target 을 가지고 오류처리
+if (target==null || id!=boardentity.getId())
+        {return null;}                              => id 제대로 있는 객체 확인
+
+ (2) 이 target 객체에 dto 담은 boardentity 를 title 하고 contents 만 초기화 하는데
+	if (boardentity.title != null){        => 존재 할때만으로 오류처리
+            this.title = boardentity.title;}
+
+=> 이렇게되면, id 확실하고, title contents 확실한거만 붙여서 null 없이 잘 생성됨.
+	아닐경우, 오류처리로 null 처리 됨.
+
+//밑에껀 개념으로만 대충보자
+=> 사용자가  RestAPI - JSON 으로 data 패치할 때, 한 필드에 값 안주고 보내면(null)
+     그 필드 data는 null 로 반환되버린다. (수정인데 기존의 data 가 날라가 버림)
+        // 기존 오류처리로, patchentity 전체가 null 인건 잡았지만, 그 중 필드 한두개가 빵꾸난건 못잡았다.
+        // 이거 못잡으면, title, content 등 일부가 빵꾸난 객체가 생길시, findall 할 때 오류나서 whitelabel 뜬다.
+
+ => dto data를 붙여주는 메소드 생성 해서 붙여주자.
+ => 그리고 나서, 수정 내용을 Save 하자.        - null 안나오면서 새로운 데이터 save 됨
+
+        //save 하기 전에, findById한 새로운 객체에 수정하기 전의 entity data 붙여주기 ( 이러면 null 못생기지 )
+        patchentity.patch(boardentity);             // 메소드 적용 -> 현재 pathcentity 는 board entity 품은 상태
+
+        //정상처리
+        Boardentity editedentity = boardreposit.save(patchentity); // 원래는, boardentity 저장 (DTO 객체 다 담아놓음)
+                                              // => find 한 새로운 객체(patchentity) + 기존의 boardentity 합쳐놓은 걸로 저장
+
+
+--
+
+
+@PatchMapping ("/api/allboard/{id}")           //@GetMapping하고 같은 url 이어도 상관없음 - Http 요청 : GET
+					=> 그 URL 에서 "PATCH"를 하는 것이기 때문에 Http 요청으로 구분
+public ResponseEntity<Boardentity> patchboard ( @Patchvari Long id , @RequestBody Boardform dto ) {
+
+        Boardentity boardentity = new Boardentity();
+        boardentity.setId(dto.getId());
+        boardentity.setTitle(dto.getTitle());
+        boardentity.setContents(dto.getContents( ));                                     // DTO => toEntity ( ); 연결
+
+=> Reposit. Save (  boardentity ) ; 하면 되는데,  /  그 전에, "찾아서 있으면" 과, "id 다르면" 등 오류 처리 필요
+
+	Boardentity patchentity = Reposit.findById( id ).orElse( null );
+
+	if( patchentity == null || id != boardentitiy.getId( ) ) {                   //"찾아서 없거나 || 아이디 다르면" null 반환
+	  return ResponseEntity. status(Httpstatuts. BadRequest . body( null ) ); }
+						     (=  . build( ) ; )     // null 던지기 = build 로 끝내기
+
+	patchentity. patch( boardentity ) ;
+
+	Boardentity Edited = Reposit . Save( boardentity => patchentity );
+
+	return ResponseEntity. status(Httpstatus.OK) . body( Edited );
+
+
+4. DELETE ( 글 삭제 )
+
+@DeleteMapping ( "/api/allbaord/{id}" )              // 마찬가지로 GetMapping과 같은 URL에서 HTTP 요청방식이 DELETE 인것
+public ResponseEntity<Boardentity> delete( @Pathvari Long id ) {
+	Boardentity tobedeleted = Reposit.findById(id).orElse(null);
+
+	if( tobedeleted == null ) {                                   			//오류처리
+		return ResponseEntity.status(Httpstatus.BadRequset).body( null ); }
+
+	return ResponseEntity.statuse(Httpstatus.OK).body( null ) ;          // Delete 는 return 할게 없다. => null
+}
+
+
+( => 3항 연산자로 처리하기 )
+	return ( tobedeleted != null ) ? 				    // return 해주라 ( null 이 아니면)
+		ResponseEntity.status( Httpstatus.OK).body( ~ ) : 	    // 이걸  ( 기본 )  good  :  bad
+		ResponseEntity.status( Httpstatus.BadRequest).body( null ) ;        // 근데 만약 null 이면 이걸해주시게.
+
+
+
+
+
+
+
+
+
+< @JoinColumn   +   @ManytoOne   + FK (Foreign Key) >
+
+=> 댓글 Entity 를 Board Entity 에 붙인다.
+( 현재 Comment 엔티티 클래스 )
+1. Entity 생성할 때, 전역변수로 id, nickname body 등 주면서
+	Boardentity boardentity <- 붙일 Entity 도 준다.
+	'붙일' 엔티티 이므로, @JoinColumn 해준다.
+	이름은 @JoinColumn(name = "board_id") 특성활용해서 편하게 줄 수 있다. ( 칼럼 이름 )
+
+	방금 만든 JoinColumn 에 id 를 넣으면 그것이 Foreign Key 가 된다. (FK)
+	PK 는 각자 자기꺼 id
+	FK 는 상대방의 id 를 담는 것
+	여기서 comment 엔티티 클래스에서 상대방은 board 엔티티.
+	즉 boardentity의 PK id를 담는 FK
+
+2. Comment 엔티티에 Boardentity 를 붙이는 것. ( 현재 Commnet 엔티티클래스잖아 )
+	그럼, Comment 입장에서 Board엔티티는 One 이지.   ( to 다음으로 판단하자 )
+	@ManytoOne  해준다.
+
+
+< 댓글 Repository 만들기 >
+1. Interface 로 만들어서 JpaRepository 상속하자. 제너릭은 < comment엔티티, FK타입 > 관리할 FK의 타입으로 해주는거다.
+public interface CommentRepository extends JpaRepository<Commnet, Long> {
+
+2. 메소드를 일단 선언만 한다.
+// 게시글 댓글 전체 보기
+List<Comment> findByBoardId(Long boardId);
+
+3. 이 메소드의 구현은 구현클래스를 만들수도 있겠지만, @Query 를 활용하면 간단하다. ( + NativeQuery : true )
+					    테이블FK명 = :파라미터명	    네이티브쿼리 (기본값 = false)
+@Query(value = "SELECT * FROM comment WHERE board_id = :boardId",     nativeQuery = true)
+
+
+4. 이걸 Native Query XML 로 작성하는 방법
+
+(1) Resources 에  " META-INF " 디렉토리 생성
+(2) orm.xml 파일 생성
+(3) 구글링으로 orm.xml example 혹은 orm native query 등으로 기본 쿼리 세팅 복붙
+(4) <named native query
+		name = "Comment.findByNickname" 		         <= 클래스명.메소드명
+		result-class = "June.Board.Boardentity.Comment">       <= 클래스 Reference 주소
+	<query>
+		<![CDATA[   쿼리문   ]]>
+	</queary> </named native query>   이렇게 날려주면 된다.
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+< Exception >
+---------------------------------------------------------------------------------------------------------------------------------
+1. .JdbcSQLNonTransientConnectionException:
+ Connection is broken: "java.net.SocketTimeoutException: connect timed out: localhost"
+
+- properties 에 datasource 로 url하고  h2.driver 설정해두고 h2 서버 실행 안시키고 java 어플 돌리면
+  datasource 를 가져와야되는데 DB랑 연결이 안되있어서 나는 오류
+
+2. Bind exception 잡는법 보충 필요 안잡힘
+- 비밀번호 data type 을 int 로 잡아놨는데, form 에 사용자가 입력할 때, 문자로 입력하면 생기는 오류.
+오류창으로 이동되는데, 이걸 잡아서 안내 페이지로 이동하게 만들고 싶음
+
