@@ -19,14 +19,17 @@ public class MySum {
         return String.valueOf(first + second);
     }
 
+
+
     public boolean equals(Object obj) {
         if (obj instanceof MySum) {
-            return (String.valueOf(this.first+this.second)).equals(obj.toString());
+            return this.toString().equals(obj.toString());
         } else {
             return false;
         }
-
     }
+
+
 
         public String createTime(){
             LocalDateTime current = LocalDateTime.now();
