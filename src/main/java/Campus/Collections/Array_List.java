@@ -1,6 +1,7 @@
 package Campus.Collections;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 class A{
 
@@ -33,25 +34,38 @@ public class Array_List {
         A a2 = new A(23, "Tom", 340.5);
         A a3 = new A(24, "lune", 900.000);
 
-        ArrayList list = new ArrayList();
+        ArrayList<A> list = new ArrayList();
 
-        list.add("java");
+        /*list.add("java");
         list.add(100);
         list.add(3.14);
         list.add('a');
         list.add(true);
+
+         */
         list.add(a1);
         list.add(a2);
         list.add(a3);
 
 
         System.out.println(list.size());
+/*
 
         for (int i = 0; i < list.size(); i++) {
             System.out.println(list.get(i));
         }
+*/
 
+/*
+        for (A aa: list
+             ) {System.out.println(aa);}
+*/
 
+        Iterator iterator = list.iterator();
+
+        while (iterator.hasNext()) {
+            System.out.println(iterator.next());
+        }
 
 
 

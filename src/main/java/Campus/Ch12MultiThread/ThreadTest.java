@@ -1,13 +1,14 @@
-package Campus.Collections;
+package Campus.Ch12MultiThread;
 class MusicThread extends Thread{
     //상속 . 생성자. 오버라이딩 - 음악듣는중입니다 3번 출력
-    MusicThread(String music) {
+    MusicThread(String name) {
+        super(name);
     }
 
     @Override
     public void run() {
         for (int a = 0; a < 3; a++) {
-            System.out.println("music thread");
+            System.out.println(getName() + "music thread");
         }
     }
 }
