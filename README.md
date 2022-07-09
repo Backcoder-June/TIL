@@ -1,8 +1,8 @@
 # June Intro
 
 * *Main Language - Java*
-* *Experience - 3 months*
-* *Wanting position - Back end*
+* *Additional Tools - SpringBoot, MySQL, Github, HTML*
+* *Job Objectives - Back End Developer*
 
 ---
 
@@ -26,6 +26,4 @@
 
 
 
-* #### Interface
 
-* 
