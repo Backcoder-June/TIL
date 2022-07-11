@@ -66,6 +66,7 @@ public class Scanner_ChatBot {
 
 
 
+                fo.close();
                 //user.txt 에 회원 정보 저장 / 한줄에 하나씩
             } else if (menu == 2) {
                 System.out.println("로그인 화면 이동");
@@ -82,12 +83,14 @@ public class Scanner_ChatBot {
                     String s = sc.nextLine();
 
                     if ( s.equalsIgnoreCase(id+" "+pw)){
-                        System.out.println("로그인 되었습니다.");break;
+                        System.out.println(id + "님, 로그인 되었습니다.");break;
                     }else if(!(sc.hasNextLine())){
                         System.out.println("잘못된 로그인 정보입니다.");
                     }
                 }
 
+                fr2.close();
+                sc.close();
 
 
 
@@ -99,10 +102,12 @@ public class Scanner_ChatBot {
                 // 로그인 성공 / 실패 출력
 
             } else if (menu == 3) {
-                System.out.println("장바구니");
+                System.out.println("장바구니 화면 이동");
             } else if (menu == 4) {
                 System.out.println("상품 리스트 화면 이동");
             }
         }
+
+
     }
 }

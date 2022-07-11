@@ -1,10 +1,10 @@
-package CodingTest.Mathmetic;
+package CodingTest.Mathmatics;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Scanner;
 
-public class Main {
+public class Math08_BigDecimal {
     public static void main(String[] args) throws IOException {
 
 

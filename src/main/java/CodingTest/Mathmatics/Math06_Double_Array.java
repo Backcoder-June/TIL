@@ -1,4 +1,4 @@
-package CodingTest.Mathmetic;
+package CodingTest.Mathmatics;
 
 import java.io.BufferedReader;
 import java.io.IOException;
