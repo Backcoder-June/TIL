@@ -9,7 +9,14 @@ public class Recursion01_Facto {
 
             int N = sc.nextInt();
 
-            if (N == 0) {
+
+/*  재귀로 풀기
+        public static int facto(int n){
+            if(n<=1){return 1;}
+            return n*facto(n-1); }
+*/
+
+        if (N == 0) {
                 System.out.println(1); return;
             }
             int facto = 1;
