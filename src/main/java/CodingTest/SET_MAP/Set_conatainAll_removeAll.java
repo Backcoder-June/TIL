@@ -3,12 +3,14 @@ package CodingTest.SET_MAP;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.StringTokenizer;
 
-public class Set01_Contains {
+public class Set_conatainAll_removeAll {
     public static void main(String[] args) throws IOException {
+
+
+
 
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         StringTokenizer tk = new StringTokenizer(br.readLine());
@@ -29,16 +31,31 @@ public class Set01_Contains {
             set.add(s);}
 
 
-        int count = 0;
+        HashSet<String> set2 = new HashSet<>();
+
         for (int j = 0; j < m; j++) {
 
             String s2 = br.readLine();
 
-            if (set.contains(s2)){
-                count++;
+            set2.add(s2);
             }
-        }
 
-        System.out.println(count);
+
+
+//        set.retainAll(set2);
+
+        set2.removeAll(set);
+
+        System.out.println(set2.size());
+
+
+
+
+
+
     }
 }
+
+
+
+
