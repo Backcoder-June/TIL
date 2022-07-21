@@ -7,54 +7,42 @@ import java.util.HashMap;
 import java.util.StringTokenizer;
 
 public class Main {
-
-    public static boolean isStirngNumber(String s){
-        try {
-            Double.parseDouble(s);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
     public static void main(String[] args) throws IOException {
 
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
+        int n = Integer.parseInt(br.readLine());
+
+        HashMap<Integer, Integer> map = new HashMap();
+
         StringTokenizer tk = new StringTokenizer(br.readLine());
 
-        int n = Integer.parseInt(tk.nextToken());
-        int m = Integer.parseInt(tk.nextToken());
-
-        HashMap<Integer, String> map = new HashMap<>();
-
         for (int i = 0; i < n; i++) {
-            map.put(i, br.readLine());
-        }
+            map.put(i, Integer.parseInt(tk.nextToken())); }
 
 
-        BufferedReader br2;
+        int m = Integer.parseInt(br.readLine());
+
+         tk = new StringTokenizer(br.readLine());
+
+        int[] card = new int[m];
         for (int j = 0; j < m; j++) {
+            card[j] =Integer.parseInt(tk.nextToken()); }
 
-           br2 = new BufferedReader(new InputStreamReader(System.in));
 
 
-            for (Integer k : map.keySet()
-            ) {
-                if ( isStirngNumber(br2.readLine())){
-                System.out.println(map.get(Integer.parseInt(br2.readLine())));
-                }
-                else if((br2.readLine()).equals(map.get(k))) {
-                    System.out.println(k + 1);
+        for (int a = 0; a < m; a++) {
+
+            int count = 0;
+            for (int b = 0; b < n; b++) {
+
+                if (map.get(b) == card[a]) {
+                    count++;
                 }
             }
 
-
+            System.out.print(count+" ");
         }
-
-
-
-
 
     }
 }
