@@ -6,7 +6,7 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.StringTokenizer;
 
-public class Main {
+public class map04_getorDefault_fail {
     public static void main(String[] args) throws IOException {
 
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -16,6 +16,8 @@ public class Main {
         HashMap<Integer, Integer> map = new HashMap();
 
         StringTokenizer tk = new StringTokenizer(br.readLine());
+        StringBuilder sb = new StringBuilder();
+
 
         for (int i = 0; i < n; i++) {
             map.put(i, Integer.parseInt(tk.nextToken())); }
@@ -40,9 +42,8 @@ public class Main {
                     count++;
                 }
             }
-
-            System.out.print(count+" ");
+            sb.append(count+" ");
         }
-
+        System.out.println(sb);
     }
 }
