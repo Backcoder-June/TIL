@@ -7,11 +7,10 @@ import java.util.HashSet;
 public class ReportResult {
     public static void main(String[] args) {
 
-        String[] id_list = {"abb", "bb", "c", "d"};
-        String[] report = {"abb bb", "bb abb", "c bb", "bb abb", "d abb", "bb c", "d bb" };
+        String[] id_list = {"a", "b", "c", "d"};
+        String[] report = {"a b", "b a", "c b", "b a", "d a", "b c", "d b" };
 
         HashSet<String> reportSet = new HashSet<>();
-
 
         for (int a =0; a< report.length; a++){
             reportSet.add(report[a]);
