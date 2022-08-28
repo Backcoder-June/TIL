@@ -1,6 +1,11 @@
 package Programmers;
 
 public class ra {
+    String a ;
+    int b;
+
+
+
 
     public static void main(String[] args) {
 

@@ -3,6 +3,7 @@ package Programmers;
 public class KeyPad {
     public static void main(String[] args) {
 
+
         int[] numbers = {7, 0, 8, 2, 8, 3, 1, 5, 7, 6, 2};
 
         for (int j = 0; j < numbers.length; j++) {
@@ -59,7 +60,7 @@ public class KeyPad {
                     } else if (Math.abs(numbers[i] - (lefthand)) <
                             Math.abs(numbers[i] - (righthand - 1))+3) {
                         sb.append("L");
-                        lefthand = numbers[i];
+                                    lefthand = numbers[i];
                     } else if (Math.abs(numbers[i] - (lefthand)) ==
                             Math.abs(numbers[i] - (righthand - 1))+3) {
                         sb.append(uphand);
