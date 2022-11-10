@@ -1,4 +1,4 @@
-package UTEKO;
+package UTEKO.FirstWeek;
 
 public class Problem2 {
 

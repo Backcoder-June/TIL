@@ -1,4 +1,4 @@
-package UTEKO;
+package UTEKO.FirstWeek;
 
 import java.util.ArrayList;
 import java.util.List;
